@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>NotificationConsumer.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">payment-service-template</a> &gt; <a href="index.source.html" class="el_package">ch.example.template.notification</a> &gt; <span class="el_source">NotificationConsumer.java</span></div><h1>NotificationConsumer.java</h1><pre class="source lang-java linenums">package ch.example.template.notification;
+
+import ch.example.template.api.CorrelationIdFilter;
+import ch.example.template.application.PaymentService;
+import ch.example.template.domain.EventEnvelope;
+import ch.example.template.domain.Payment;
+import ch.example.template.domain.PaymentRepository;
+import ch.example.template.infrastructure.persistence.OutboxEntry;
+import ch.example.template.infrastructure.persistence.OutboxRepository;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+import java.util.UUID;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.common.header.Header;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
+import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
+/**
+ * Kafka consumer for {@code payments.requested}.
+ *
+ * &lt;p&gt;Simulates settlement and emits a {@code payments.settled} event via the outbox.
+ *
+ * &lt;p&gt;Reliability pattern:
+ *
+ * &lt;ul&gt;
+ *   &lt;li&gt;&lt;b&gt;Consumer idempotency&lt;/b&gt;: checks {@link ProcessedEventStore} before any state mutation.
+ *   &lt;li&gt;&lt;b&gt;Retry with backoff&lt;/b&gt;: configured in {@link
+ *       ch.example.template.infrastructure.messaging.KafkaConfig}.
+ *   &lt;li&gt;&lt;b&gt;DLT&lt;/b&gt;: unrecoverable messages land in {@code payments.requested.DLT}.
+ * &lt;/ul&gt;
+ */
+@Component
+class NotificationConsumer {
+
+<span class="fc" id="L41">    private static final Logger log = LoggerFactory.getLogger(NotificationConsumer.class);</span>
+
+    private static final String TOPIC_SETTLED = &quot;payments.settled&quot;;
+    private static final String EVENT_TYPE_SETTLED = &quot;payment.settled&quot;;
+
+    private final PaymentRepository paymentRepository;
+    private final OutboxRepository outbox;
+    private final ProcessedEventStore processedEvents;
+    private final ObjectMapper objectMapper;
+
+    private final Counter settledCounter;
+    private final Counter failedCounter;
+    private final Counter dltCounter;
+
+    NotificationConsumer(
+            PaymentRepository paymentRepository,
+            OutboxRepository outbox,
+            ProcessedEventStore processedEvents,
+            ObjectMapper objectMapper,
+<span class="fc" id="L60">            MeterRegistry meters) {</span>
+<span class="fc" id="L61">        this.paymentRepository = paymentRepository;</span>
+<span class="fc" id="L62">        this.outbox = outbox;</span>
+<span class="fc" id="L63">        this.processedEvents = processedEvents;</span>
+<span class="fc" id="L64">        this.objectMapper = objectMapper;</span>
+
+<span class="fc" id="L66">        this.settledCounter = Counter.builder(&quot;payments.settled&quot;)</span>
+<span class="fc" id="L67">                .description(&quot;Number of payments successfully settled&quot;)</span>
+<span class="fc" id="L68">                .register(meters);</span>
+<span class="fc" id="L69">        this.failedCounter = Counter.builder(&quot;payments.failed&quot;)</span>
+<span class="fc" id="L70">                .description(&quot;Number of payments that failed settlement&quot;)</span>
+<span class="fc" id="L71">                .tag(&quot;reason&quot;, &quot;settlement_error&quot;)</span>
+<span class="fc" id="L72">                .register(meters);</span>
+<span class="fc" id="L73">        this.dltCounter = Counter.builder(&quot;payments.dlt.messages&quot;)</span>
+<span class="fc" id="L74">                .description(&quot;Number of messages sent to the dead-letter topic&quot;)</span>
+<span class="fc" id="L75">                .register(meters);</span>
+<span class="fc" id="L76">    }</span>
+
+    @KafkaListener(topics = PaymentService.TOPIC_REQUESTED, groupId = &quot;${spring.kafka.consumer.group-id}&quot;)
+    @Transactional
+    public void onPaymentRequested(ConsumerRecord&lt;String, String&gt; record) {
+
+<span class="fc" id="L82">        Header corrHeader = record.headers().lastHeader(&quot;X-Correlation-Id&quot;);</span>
+<span class="pc bpc" id="L83" title="1 of 2 branches missed.">        if (corrHeader != null) {</span>
+<span class="nc" id="L84">            MDC.put(CorrelationIdFilter.MDC_KEY, new String(corrHeader.value()));</span>
+        }
+
+        try {
+<span class="fc" id="L88">            EventEnvelope&lt;PaymentService.PaymentPayload&gt; envelope = deserialize(record.value());</span>
+
+<span class="fc bfc" id="L90" title="All 2 branches covered.">            if (!processedEvents.tryMarkProcessed(envelope.eventId(), record.topic())) {</span>
+<span class="fc" id="L91">                log.debug(&quot;Duplicate event skipped: eventId={}&quot;, envelope.eventId());</span>
+<span class="fc" id="L92">                return;</span>
+            }
+
+<span class="fc" id="L95">            UUID paymentId = UUID.fromString(record.key());</span>
+<span class="fc" id="L96">            Payment payment = paymentRepository</span>
+<span class="fc" id="L97">                    .findById(paymentId)</span>
+<span class="pc" id="L98">                    .orElseThrow(() -&gt; new IllegalStateException(&quot;Payment not found for event: &quot; + paymentId));</span>
+
+<span class="fc" id="L100">            payment.settle();</span>
+<span class="fc" id="L101">            paymentRepository.save(payment);</span>
+
+<span class="fc" id="L103">            var settledEnvelope = EventEnvelope.of(</span>
+                    EVENT_TYPE_SETTLED,
+                    PaymentService.EVENT_VERSION,
+<span class="fc" id="L106">                    envelope.correlationId(),</span>
+<span class="fc" id="L107">                    PaymentService.PaymentPayload.from(payment));</span>
+<span class="fc" id="L108">            String payload = serialize(settledEnvelope);</span>
+<span class="fc" id="L109">            outbox.save(OutboxEntry.of(TOPIC_SETTLED, paymentId.toString(), payload));</span>
+
+<span class="fc" id="L111">            settledCounter.increment();</span>
+<span class="fc" id="L112">            log.info(&quot;Payment settled id={}&quot;, paymentId);</span>
+
+<span class="fc" id="L114">        } catch (Exception e) {</span>
+<span class="fc" id="L115">            failedCounter.increment();</span>
+<span class="fc" id="L116">            throw e;</span>
+        } finally {
+<span class="fc" id="L118">            MDC.remove(CorrelationIdFilter.MDC_KEY);</span>
+        }
+<span class="fc" id="L120">    }</span>
+
+    @KafkaListener(topics = PaymentService.TOPIC_REQUESTED + &quot;-dlt&quot;, groupId = &quot;${spring.kafka.consumer.group-id}-dlt&quot;)
+    public void onDlt(ConsumerRecord&lt;String, String&gt; record) {
+<span class="fc" id="L124">        dltCounter.increment();</span>
+<span class="fc" id="L125">        log.error(&quot;Message landed in DLT: topic={} key={} offset={}&quot;, record.topic(), record.key(), record.offset());</span>
+<span class="fc" id="L126">    }</span>
+
+    private EventEnvelope&lt;PaymentService.PaymentPayload&gt; deserialize(String json) {
+        try {
+<span class="fc" id="L130">            return objectMapper.readValue(json, new TypeReference&lt;EventEnvelope&lt;PaymentService.PaymentPayload&gt;&gt;() {});</span>
+<span class="fc" id="L131">        } catch (Exception e) {</span>
+<span class="fc" id="L132">            throw new IllegalArgumentException(&quot;Cannot deserialise payment event: &quot; + e.getMessage(), e);</span>
+        }
+    }
+
+    private String serialize(Object obj) {
+        try {
+<span class="fc" id="L138">            return objectMapper.writeValueAsString(obj);</span>
+<span class="nc" id="L139">        } catch (Exception e) {</span>
+<span class="nc" id="L140">            throw new IllegalStateException(&quot;Cannot serialise event&quot;, e);</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

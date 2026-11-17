@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="ch.example.template.domain.MoneyTest" tests="13" skipped="0" failures="0" errors="0" timestamp="2026-11-17T22:34:35.016Z" hostname="Luisas-MBP.fritz.box" time="0.084">
+  <properties/>
+  <testcase name="to_string_includes_amount_and_currency()" classname="ch.example.template.domain.MoneyTest" time="0.059"/>
+  <testcase name="rejects_too_many_decimal_places_for_chf()" classname="ch.example.template.domain.MoneyTest" time="0.001"/>
+  <testcase name="is_positive_true_for_non_zero()" classname="ch.example.template.domain.MoneyTest" time="0.0"/>
+  <testcase name="add_same_currency()" classname="ch.example.template.domain.MoneyTest" time="0.001"/>
+  <testcase name="subtract_same_currency()" classname="ch.example.template.domain.MoneyTest" time="0.001"/>
+  <testcase name="rejects_null_amount()" classname="ch.example.template.domain.MoneyTest" time="0.001"/>
+  <testcase name="jpy_allows_zero_decimal_places()" classname="ch.example.template.domain.MoneyTest" time="0.0"/>
+  <testcase name="normalises_currency_to_uppercase()" classname="ch.example.template.domain.MoneyTest" time="0.0"/>
+  <testcase name="add_different_currency_throws()" classname="ch.example.template.domain.MoneyTest" time="0.0"/>
+  <testcase name="rejects_negative_amount()" classname="ch.example.template.domain.MoneyTest" time="0.001"/>
+  <testcase name="creates_money_with_valid_currency_and_amount()" classname="ch.example.template.domain.MoneyTest" time="0.001"/>
+  <testcase name="rejects_unsupported_currency()" classname="ch.example.template.domain.MoneyTest" time="0.003"/>
+  <testcase name="is_zero_true_for_zero()" classname="ch.example.template.domain.MoneyTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

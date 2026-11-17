@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="ch.example.template.api.PaymentControllerTest" tests="7" skipped="0" failures="0" errors="0" timestamp="2026-11-17T22:34:45.146Z" hostname="Luisas-MBP.fritz.box" time="1.756">
+  <properties/>
+  <testcase name="post_missing_required_fields_returns_400_with_violations()" classname="ch.example.template.api.PaymentControllerTest" time="0.16"/>
+  <testcase name="get_existing_payment_returns_200()" classname="ch.example.template.api.PaymentControllerTest" time="0.023"/>
+  <testcase name="post_idempotent_replay_returns_201_same_body()" classname="ch.example.template.api.PaymentControllerTest" time="0.01"/>
+  <testcase name="get_unknown_payment_returns_404()" classname="ch.example.template.api.PaymentControllerTest" time="0.003"/>
+  <testcase name="post_valid_request_returns_201()" classname="ch.example.template.api.PaymentControllerTest" time="0.004"/>
+  <testcase name="post_missing_idempotency_key_returns_400()" classname="ch.example.template.api.PaymentControllerTest" time="0.002"/>
+  <testcase name="post_idempotency_conflict_returns_409()" classname="ch.example.template.api.PaymentControllerTest" time="0.003"/>
+  <system-out><![CDATA[23:34:45.190 [Test worker] INFO org.springframework.test.context.support.AnnotationConfigContextLoaderUtils -- Could not detect default configuration classes for test class [ch.example.template.api.PaymentControllerTest]: PaymentControllerTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+23:34:45.268 [Test worker] INFO org.springframework.boot.test.context.SpringBootTestContextBootstrapper -- Found @SpringBootConfiguration ch.example.template.Application for test class ch.example.template.api.PaymentControllerTest
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::               (v3.5.16)
+
+{"@timestamp":"2026-11-17T23:34:45.614915+01:00","@version":"1","message":"HV000001: Hibernate Validator 8.0.3.Final","logger_name":"org.hibernate.validator.internal.util.Version","thread_name":"background-preinit","level":"INFO","level_value":20000,"appName":"payment-service-template","app":"payment-service-template"}
+{"@timestamp":"2026-11-17T23:34:45.640563+01:00","@version":"1","message":"Starting PaymentControllerTest using Java 21.0.10 with PID 68737 (started by luisa in /Users/luisa/Workspace/Alpian-Payment-Service)","logger_name":"ch.example.template.api.PaymentControllerTest","thread_name":"Test worker","level":"INFO","level_value":20000,"appName":"payment-service-template","app":"payment-service-template"}
+{"@timestamp":"2026-11-17T23:34:45.641084+01:00","@version":"1","message":"No active profile set, falling back to 1 default profile: \"default\"","logger_name":"ch.example.template.api.PaymentControllerTest","thread_name":"Test worker","level":"INFO","level_value":20000,"appName":"payment-service-template","app":"payment-service-template"}
+{"@timestamp":"2026-11-17T23:34:46.672055+01:00","@version":"1","message":"Initializing Spring TestDispatcherServlet ''","logger_name":"org.springframework.boot.test.mock.web.SpringBootMockServletContext","thread_name":"Test worker","level":"INFO","level_value":20000,"appName":"payment-service-template","app":"payment-service-template"}
+{"@timestamp":"2026-11-17T23:34:46.672301+01:00","@version":"1","message":"Initializing Servlet ''","logger_name":"org.springframework.test.web.servlet.TestDispatcherServlet","thread_name":"Test worker","level":"INFO","level_value":20000,"appName":"payment-service-template","app":"payment-service-template"}
+{"@timestamp":"2026-11-17T23:34:46.673156+01:00","@version":"1","message":"Completed initialization in 0 ms","logger_name":"org.springframework.test.web.servlet.TestDispatcherServlet","thread_name":"Test worker","level":"INFO","level_value":20000,"appName":"payment-service-template","app":"payment-service-template"}
+{"@timestamp":"2026-11-17T23:34:46.689015+01:00","@version":"1","message":"Started PaymentControllerTest in 1.39 seconds (process running for 1.967)","logger_name":"ch.example.template.api.PaymentControllerTest","thread_name":"Test worker","level":"INFO","level_value":20000,"appName":"payment-service-template","app":"payment-service-template"}
+]]></system-out>
+  <system-err><![CDATA[Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3
+WARNING: A Java agent has been loaded dynamically (/Users/luisa/.gradle/caches/modules-2/files-2.1/net.bytebuddy/byte-buddy-agent/1.17.8/f09415827a71be7ed621c7bd02550678f28bc81c/byte-buddy-agent-1.17.8.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+]]></system-err>
+</testsuite>
