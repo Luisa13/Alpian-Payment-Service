@@ -1,0 +1,245 @@
+openapi: "3.1.0"
+
+info:
+  title: Payment Service API
+  version: "1.0.0"
+  description: |
+    Template API — the `transfers` paths are a sample feature.
+    Replace them with your domain when using this template.
+
+    **Idempotency**: `POST` endpoints require an `Idempotency-Key` header (UUID).
+    Replaying the same key + same body returns the original response.
+    Same key + different body returns `409 Conflict`.
+
+    **Error format**: All error responses follow RFC 9457 `ProblemDetail`.
+
+servers:
+  - url: http://localhost:8080
+    description: Local development
+
+tags:
+  - name: Transfers
+    description: "Sample feature — replace with your domain"
+
+# ─── Paths ────────────────────────────────────────────────────────────────────
+
+paths:
+
+  /v1/transfers:
+    post:
+      tags: [Transfers]
+      summary: Initiate a transfer
+      operationId: createTransfer
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/CorrelationId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTransferRequest"
+            example:
+              amount: "100.00"
+              currency: "CHF"
+              sourceAccountId: "a0000000-0000-0000-0000-000000000001"
+              targetAccountId: "a0000000-0000-0000-0000-000000000002"
+              description: "Rent payment"
+      responses:
+        "201":
+          description: Transfer accepted (idempotent — replaying returns the same 201)
+          headers:
+            X-Request-Id:
+              description: Echo of the correlation ID
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TransferResponse"
+        "400":
+          description: Validation error
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ValidationProblemDetail"
+        "409":
+          description: Idempotency conflict — same key, different body
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "422":
+          description: Business rule violation
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "500":
+          description: Unexpected error (no stack trace exposed)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+
+  /v1/transfers/{id}:
+    get:
+      tags: [Transfers]
+      summary: Get a transfer by ID
+      operationId: getTransfer
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Transfer found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TransferResponse"
+        "404":
+          description: Transfer not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "500":
+          description: Unexpected error
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+
+# ─── Components ───────────────────────────────────────────────────────────────
+
+components:
+
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: Client-generated UUID. Guarantees at-most-once semantics.
+      schema:
+        type: string
+        format: uuid
+        example: "550e8400-e29b-41d4-a716-446655440000"
+
+    CorrelationId:
+      name: X-Request-Id
+      in: header
+      required: false
+      description: Optional caller-supplied correlation ID; generated if absent.
+      schema:
+        type: string
+        example: "req-abc123"
+
+  schemas:
+
+    CreateTransferRequest:
+      type: object
+      required: [amount, currency, sourceAccountId, targetAccountId]
+      properties:
+        amount:
+          type: string
+          description: |
+            Decimal amount as a string to preserve precision.
+            No scientific notation. Max 2 decimal places for most currencies.
+          pattern: "^\\d+(\\.\\d{1,8})?$"
+          example: "100.00"
+        currency:
+          type: string
+          description: ISO 4217 currency code
+          minLength: 3
+          maxLength: 3
+          pattern: "^[A-Z]{3}$"
+          example: "CHF"
+        sourceAccountId:
+          type: string
+          format: uuid
+          description: Account to debit
+        targetAccountId:
+          type: string
+          format: uuid
+          description: Account to credit
+        description:
+          type: string
+          maxLength: 255
+          description: Human-readable purpose
+
+    TransferResponse:
+      type: object
+      required: [id, amount, currency, status, sourceAccountId, targetAccountId, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        amount:
+          type: string
+          example: "100.00"
+        currency:
+          type: string
+          example: "CHF"
+        status:
+          type: string
+          enum: [REQUESTED, SETTLED, FAILED]
+        failureReason:
+          type: string
+          nullable: true
+        sourceAccountId:
+          type: string
+          format: uuid
+        targetAccountId:
+          type: string
+          format: uuid
+        description:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    # RFC 9457 ProblemDetail
+    ProblemDetail:
+      type: object
+      properties:
+        type:
+          type: string
+          format: uri
+          description: URI identifying the problem type
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+          format: uri
+        errorReference:
+          type: string
+          description: Opaque reference for server-side log correlation (500 only)
+
+    # ProblemDetail extended with per-field validation errors
+    ValidationProblemDetail:
+      allOf:
+        - $ref: "#/components/schemas/ProblemDetail"
+        - type: object
+          properties:
+            violations:
+              type: object
+              description: Map of field path → error message
+              additionalProperties:
+                type: string
+              example:
+                amount: "must match pattern '^\\d+(\\.\\d{1,8})?$'"
+                currency: "must match '[A-Z]{3}'"

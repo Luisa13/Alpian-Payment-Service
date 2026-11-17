@@ -1,0 +1,20 @@
+# ─── Local profile (docker-compose) ─────────────────────────────────────────
+# Activated when running with -Dspring.profiles.active=local or via docker-compose
+# environment variable SPRING_PROFILES_ACTIVE=local.
+# Plain-text console logging is used here (no JSON); structured JSON activates in
+# all other profiles via logback-spring.xml.
+
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/paymentdb
+    username: payment
+    password: payment
+
+  kafka:
+    bootstrap-servers: localhost:9092
+
+logging:
+  level:
+    root: INFO
+    ch.example.template: DEBUG
+    org.springframework.kafka: INFO

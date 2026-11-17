@@ -1,0 +1,16 @@
+# ─── Test profile ─────────────────────────────────────────────────────────────
+# @ServiceConnection in IntegrationTestBase overrides datasource.url and
+# kafka.bootstrap-servers automatically — no manual overrides needed here.
+
+logging:
+  level:
+    root: WARN
+    ch.example.template: DEBUG
+    org.springframework.kafka: WARN
+    org.testcontainers: WARN
+    com.github.dockerjava: WARN
+
+# Keep the outbox relay interval very short so integration tests don't wait long
+app:
+  outbox:
+    relay-interval-ms: 100

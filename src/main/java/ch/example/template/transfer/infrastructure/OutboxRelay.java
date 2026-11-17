@@ -1,0 +1,118 @@
+package ch.example.template.transfer.infrastructure;
+
+import ch.example.template.config.CorrelationIdFilter;
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.MeterRegistry;
+import jakarta.annotation.PostConstruct;
+import java.time.Instant;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
+import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.header.internals.RecordHeaders;
+import org.slf4j.MDC;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
+/**
+ * Polling transactional outbox relay.
+ *
+ * <p>Algorithm per scheduling cycle:
+ *
+ * <ol>
+ *   <li>Acquire an exclusive lock on a batch of unsent outbox rows with {@code SELECT … FOR UPDATE
+ *       SKIP LOCKED} — concurrent relay instances skip each other's locked rows automatically.
+ *   <li>For each row, publish a {@link ProducerRecord} to Kafka (synchronously within the
+ *       transaction; Kafka send is fire-and-forget here — message delivery is guaranteed by the
+ *       producer's {@code acks=all} config and retry policy).
+ *   <li>Mark all published rows {@code sent = true} in one batched UPDATE.
+ * </ol>
+ *
+ * <p>The correlation ID from the outbox payload header is propagated into the Kafka {@link
+ * ProducerRecord} headers so consumers can log it end-to-end.
+ *
+ * <p>Alternative: Debezium CDC (see ADR-0003) eliminates this polling loop by streaming outbox
+ * inserts directly from the PostgreSQL WAL.
+ */
+@Component
+class OutboxRelay {
+
+    private static final int BATCH_SIZE = 100;
+    private static final String CORRELATION_HEADER = "X-Correlation-Id";
+
+    private final JdbcClient jdbc;
+    private final KafkaTemplate<String, String> kafkaTemplate;
+    private final AtomicLong backlogGauge = new AtomicLong(0);
+
+    @Value("${app.outbox.relay-interval-ms:1000}")
+    private long relayIntervalMs;
+
+    OutboxRelay(JdbcClient jdbc, KafkaTemplate<String, String> kafkaTemplate, MeterRegistry meters) {
+        this.jdbc = jdbc;
+        this.kafkaTemplate = kafkaTemplate;
+
+        Gauge.builder("outbox.backlog.events", backlogGauge, AtomicLong::get)
+                .description("Number of unsent outbox events waiting to be published to Kafka")
+                .register(meters);
+    }
+
+    @PostConstruct
+    void initBacklogGauge() {
+        refreshBacklog();
+    }
+
+    @Scheduled(fixedDelayString = "${app.outbox.relay-interval-ms:1000}")
+    @Transactional
+    public void relay() {
+        List<OutboxRow> batch =
+                jdbc.sql("""
+                        SELECT id, topic, message_key, payload
+                        FROM outbox_events
+                        WHERE sent = false
+                        ORDER BY created_at ASC
+                        LIMIT :limit
+                        FOR UPDATE SKIP LOCKED
+                        """).param("limit", BATCH_SIZE).query(OutboxRow.class).list();
+
+        if (batch.isEmpty()) {
+            backlogGauge.set(0);
+            return;
+        }
+
+        for (OutboxRow row : batch) {
+            var headers = new RecordHeaders();
+            String correlationId = MDC.get(CorrelationIdFilter.MDC_KEY);
+            if (correlationId != null) {
+                headers.add(CORRELATION_HEADER, correlationId.getBytes());
+            }
+
+            var record = new ProducerRecord<String, String>(
+                    row.topic(), null, null, row.messageKey(), row.payload(), headers);
+            kafkaTemplate.send(record);
+        }
+
+        // Mark sent — individual updates avoid UUID type-cast issues with IN-list interpolation
+        Instant sentAt = Instant.now();
+        for (OutboxRow row : batch) {
+            jdbc.sql("UPDATE outbox_events SET sent = true, sent_at = :sentAt WHERE id = :id")
+                    .param("sentAt", sentAt)
+                    .param("id", row.id())
+                    .update();
+        }
+
+        refreshBacklog();
+    }
+
+    private void refreshBacklog() {
+        Long count = jdbc.sql("SELECT COUNT(*) FROM outbox_events WHERE sent = false")
+                .query(Long.class)
+                .single();
+        backlogGauge.set(count != null ? count : 0);
+    }
+
+    /** Projection for the SKIP LOCKED query result. */
+    record OutboxRow(java.util.UUID id, String topic, String messageKey, String payload) {}
+}

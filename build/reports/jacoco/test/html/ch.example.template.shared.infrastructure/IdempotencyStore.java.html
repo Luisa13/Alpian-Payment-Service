@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>IdempotencyStore.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">payment-service-template</a> &gt; <a href="index.source.html" class="el_package">ch.example.template.shared.infrastructure</a> &gt; <span class="el_source">IdempotencyStore.java</span></div><h1>IdempotencyStore.java</h1><pre class="source lang-java linenums">package ch.example.template.shared.infrastructure;
+
+import ch.example.template.shared.application.IdempotencyConflictException;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
+import java.util.Optional;
+import org.springframework.dao.DuplicateKeyException;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.stereotype.Component;
+
+/**
+ * HTTP idempotency store backed by the {@code idempotency_keys} table.
+ *
+ * &lt;p&gt;Protocol (called from application services, not from controllers):
+ *
+ * &lt;ol&gt;
+ *   &lt;li&gt;Hash the raw request body with SHA-256.
+ *   &lt;li&gt;Call {@link #findOrStore} inside the same transaction as the business logic:
+ *       &lt;ul&gt;
+ *         &lt;li&gt;Returns an empty {@link Optional} → no prior entry; proceed normally, then call
+ *             {@link #storeResponse}.
+ *         &lt;li&gt;Returns a present {@link Optional} with the same hash → replay the stored response.
+ *         &lt;li&gt;Returns a present {@link Optional} with a different hash → throws {@link
+ *             IdempotencyConflictException} (HTTP 409).
+ *       &lt;/ul&gt;
+ * &lt;/ol&gt;
+ *
+ * &lt;p&gt;Concurrent duplicates are handled at the database level: the first INSERT wins (UNIQUE
+ * constraint on {@code idempotency_key}); subsequent concurrent inserts get a constraint violation
+ * and retry by reading the winner's stored response.
+ */
+@Component
+public class IdempotencyStore {
+
+    private final JdbcClient jdbc;
+
+<span class="nc" id="L39">    public IdempotencyStore(JdbcClient jdbc) {</span>
+<span class="nc" id="L40">        this.jdbc = jdbc;</span>
+<span class="nc" id="L41">    }</span>
+
+    /** SHA-256 hex digest of the UTF-8 encoded request body. */
+    public static String hash(String body) {
+        try {
+<span class="nc" id="L46">            byte[] digest = MessageDigest.getInstance(&quot;SHA-256&quot;).digest(body.getBytes(StandardCharsets.UTF_8));</span>
+<span class="nc" id="L47">            return HexFormat.of().formatHex(digest);</span>
+<span class="nc" id="L48">        } catch (NoSuchAlgorithmException e) {</span>
+<span class="nc" id="L49">            throw new IllegalStateException(&quot;SHA-256 not available&quot;, e);</span>
+        }
+    }
+
+    /**
+     * Looks up an existing entry. Returns the stored response if found, or empty if this is the
+     * first time we see this key.
+     *
+     * @throws IdempotencyConflictException if the key exists but was used with a different body
+     */
+    public Optional&lt;StoredResponse&gt; findExisting(String idempotencyKey, String requestHash) {
+<span class="nc" id="L60">        return jdbc.sql(&quot;&quot;&quot;</span>
+                SELECT request_hash, response_status, response_body
+                FROM idempotency_keys
+                WHERE idempotency_key = :key
+                &quot;&quot;&quot;)
+<span class="nc" id="L65">                .param(&quot;key&quot;, idempotencyKey)</span>
+<span class="nc" id="L66">                .query(StoredResponse.class)</span>
+<span class="nc" id="L67">                .optional()</span>
+<span class="nc" id="L68">                .map(stored -&gt; {</span>
+<span class="nc bnc" id="L69" title="All 2 branches missed.">                    if (!stored.requestHash().equals(requestHash)) {</span>
+<span class="nc" id="L70">                        throw new IdempotencyConflictException(idempotencyKey);</span>
+                    }
+<span class="nc" id="L72">                    return stored;</span>
+                });
+    }
+
+    /**
+     * Persists the response for a successfully processed request. Must be called in the same
+     * transaction as the business logic.
+     *
+     * &lt;p&gt;If a concurrent duplicate INSERT wins, this call will throw a {@link DuplicateKeyException}
+     * which the caller should handle by re-reading the stored response.
+     */
+    public void storeResponse(String idempotencyKey, String requestHash, int status, String body) {
+        try {
+<span class="nc" id="L85">            jdbc.sql(&quot;&quot;&quot;</span>
+                    INSERT INTO idempotency_keys (idempotency_key, request_hash, response_status, response_body)
+                    VALUES (:key, :hash, :status, :body)
+                    &quot;&quot;&quot;)
+<span class="nc" id="L89">                    .param(&quot;key&quot;, idempotencyKey)</span>
+<span class="nc" id="L90">                    .param(&quot;hash&quot;, requestHash)</span>
+<span class="nc" id="L91">                    .param(&quot;status&quot;, status)</span>
+<span class="nc" id="L92">                    .param(&quot;body&quot;, body)</span>
+<span class="nc" id="L93">                    .update();</span>
+<span class="nc" id="L94">        } catch (DuplicateKeyException ignored) {</span>
+            // Another concurrent request won the race — it stored its response first.
+            // The caller will return the original response from findExisting on the next call.
+<span class="nc" id="L97">        }</span>
+<span class="nc" id="L98">    }</span>
+
+    /** Projection for the idempotency_keys SELECT result. */
+<span class="nc" id="L101">    public record StoredResponse(String requestHash, int responseStatus, String responseBody) {}</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>
