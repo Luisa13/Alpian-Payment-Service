@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.openapi.generator)
     java
     jacoco
+    `java-test-fixtures`
 }
 
 java {
@@ -17,12 +18,46 @@ repositories {
     mavenCentral()
 }
 
+// ─── Source sets ──────────────────────────────────────────────────────────────
+
+sourceSets {
+    main {
+        java {
+            srcDir(layout.buildDirectory.dir("generated/openapi").map { it.dir("src/main/java") })
+        }
+    }
+    // The default `test` source set is intentionally disconnected — all test execution
+    // goes through the three custom tasks below (unitTest, integrationTest, e2eTest).
+    // src/test/java/ acts as the parent directory for the three subdirectories.
+    test {
+        java.setSrcDirs(emptyList<File>())
+        resources.setSrcDirs(emptyList<File>())
+    }
+    create("unitTest") {
+        java.srcDir("src/test/java/unitTest")
+        resources.srcDir("src/test/resources/unitTest")
+        compileClasspath += sourceSets.main.get().output + configurations.compileClasspath.get()
+        runtimeClasspath += sourceSets.main.get().output + configurations.runtimeClasspath.get()
+    }
+    create("integrationTest") {
+        java.srcDir("src/test/java/integrationTest")
+        resources.srcDir("src/test/resources/integrationTest")
+        compileClasspath += sourceSets.main.get().output + configurations.compileClasspath.get()
+        runtimeClasspath += sourceSets.main.get().output + configurations.runtimeClasspath.get()
+    }
+    create("e2eTest") {
+        java.srcDir("src/test/java/e2eTest")
+        resources.srcDir("src/test/resources/e2eTest")
+        compileClasspath += sourceSets.main.get().output + configurations.compileClasspath.get()
+        runtimeClasspath += sourceSets.main.get().output + configurations.runtimeClasspath.get()
+    }
+}
+
 // ─── Dependencies ─────────────────────────────────────────────────────────────
 
 dependencies {
     // BOM — manages all Spring Boot ecosystem versions
     implementation(platform(libs.spring.boot.bom))
-    testImplementation(platform(libs.spring.boot.bom))
 
     // Web + Validation
     implementation("org.springframework.boot:spring-boot-starter-web")
@@ -32,10 +67,10 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("io.micrometer:micrometer-registry-prometheus")
 
-    // Data — Spring Data JDBC (repositories + aggregate mapping) + JdbcClient (complex SQL)
+    // Data — Spring Data JDBC + JdbcClient
     implementation("org.springframework.boot:spring-boot-starter-data-jdbc")
 
-    // Flyway — migrations; postgresql module required for Flyway 10+
+    // Flyway
     implementation("org.flywaydb:flyway-core")
     runtimeOnly("org.flywaydb:flyway-database-postgresql")
     runtimeOnly("org.postgresql:postgresql")
@@ -43,28 +78,84 @@ dependencies {
     // Kafka
     implementation("org.springframework.kafka:spring-kafka")
 
-    // Structured logging (logstash JSON encoder, non-local profiles)
+    // Structured logging
     implementation(libs.logstash.logback.encoder)
 
-    // ─── Test ─────────────────────────────────────────────────────────────────
-    testImplementation("org.springframework.boot:spring-boot-starter-test")
-    testImplementation("org.springframework.kafka:spring-kafka-test")
+    // ─── Test fixtures (shared between integrationTest and e2eTest) ───────────
+    testFixturesImplementation(platform(libs.spring.boot.bom))
+    testFixturesImplementation("org.springframework.boot:spring-boot-starter-test")
+    testFixturesImplementation("org.springframework.boot:spring-boot-testcontainers")
+    testFixturesImplementation("org.testcontainers:junit-jupiter")
+    testFixturesImplementation("org.testcontainers:postgresql")
+    testFixturesImplementation("org.testcontainers:kafka")
 
-    // Testcontainers — @ServiceConnection auto-wires containers into Spring context
-    testImplementation("org.springframework.boot:spring-boot-testcontainers")
-    testImplementation("org.testcontainers:junit-jupiter")
-    testImplementation("org.testcontainers:postgresql")
-    testImplementation("org.testcontainers:kafka")
+    // ─── Unit tests ───────────────────────────────────────────────────────────
+    "unitTestImplementation"(platform(libs.spring.boot.bom))
+    "unitTestImplementation"("org.springframework.boot:spring-boot-starter-test")
+    "unitTestImplementation"(libs.archunit.junit5)
 
-    // Architecture enforcement
-    testImplementation(libs.archunit.junit5)
+    // ─── Integration tests ────────────────────────────────────────────────────
+    "integrationTestImplementation"(platform(libs.spring.boot.bom))
+    "integrationTestImplementation"("org.springframework.boot:spring-boot-starter-test")
+    "integrationTestImplementation"("org.springframework.boot:spring-boot-testcontainers")
+    "integrationTestImplementation"("org.springframework.kafka:spring-kafka-test")
+    "integrationTestImplementation"("org.testcontainers:junit-jupiter")
+    "integrationTestImplementation"("org.testcontainers:postgresql")
+    "integrationTestImplementation"("org.testcontainers:kafka")
+    "integrationTestImplementation"(testFixtures(project(":")))
+
+    // ─── E2E tests ────────────────────────────────────────────────────────────
+    "e2eTestImplementation"(platform(libs.spring.boot.bom))
+    "e2eTestImplementation"("org.springframework.boot:spring-boot-starter-test")
+    "e2eTestImplementation"("org.springframework.boot:spring-boot-testcontainers")
+    "e2eTestImplementation"("org.springframework.kafka:spring-kafka-test")
+    "e2eTestImplementation"("org.testcontainers:junit-jupiter")
+    "e2eTestImplementation"("org.testcontainers:postgresql")
+    "e2eTestImplementation"("org.testcontainers:kafka")
+    "e2eTestImplementation"(testFixtures(project(":")))
+}
+
+// ─── Test tasks ───────────────────────────────────────────────────────────────
+
+val unitTest by tasks.registering(Test::class) {
+    description = "Runs unit tests (no Spring context, no infrastructure)."
+    group = "verification"
+    testClassesDirs = sourceSets["unitTest"].output.classesDirs
+    classpath = sourceSets["unitTest"].runtimeClasspath
+    useJUnitPlatform()
+    maxParallelForks = (Runtime.getRuntime().availableProcessors() / 2).coerceAtLeast(1)
+    finalizedBy(tasks.named("jacocoTestReport"))
+}
+
+val integrationTest by tasks.registering(Test::class) {
+    description = "Runs integration tests (Spring context + Testcontainers)."
+    group = "verification"
+    testClassesDirs = sourceSets["integrationTest"].output.classesDirs
+    classpath = sourceSets["integrationTest"].runtimeClasspath
+    useJUnitPlatform()
+    maxParallelForks = 1
+    finalizedBy(tasks.named("jacocoTestReport"))
+}
+
+val e2eTest by tasks.registering(Test::class) {
+    description = "Runs end-to-end tests (full flow with Testcontainers)."
+    group = "verification"
+    testClassesDirs = sourceSets["e2eTest"].output.classesDirs
+    classpath = sourceSets["e2eTest"].runtimeClasspath
+    useJUnitPlatform()
+    maxParallelForks = 1
+    finalizedBy(tasks.named("jacocoTestReport"))
+}
+
+// Disable the default test task — all testing goes through the three custom tasks
+tasks.test {
+    enabled = false
 }
 
 // ─── Spotless ─────────────────────────────────────────────────────────────────
 
 spotless {
     java {
-        // Only format hand-written sources; never touch generated code
         target("src/**/*.java")
         palantirJavaFormat(libs.versions.palantirJavaFormat.get())
         trimTrailingWhitespace()
@@ -78,13 +169,14 @@ jacoco {
     toolVersion = libs.versions.jacoco.get()
 }
 
-tasks.test {
-    useJUnitPlatform()
-    finalizedBy(tasks.jacocoTestReport)
-}
-
 tasks.jacocoTestReport {
-    dependsOn(tasks.test)
+    // Aggregate execution data from all three test tasks
+    executionData.setFrom(
+        fileTree(layout.buildDirectory) {
+            include("jacoco/*.exec")
+        }
+    )
+    dependsOn(unitTest, integrationTest, e2eTest)
     reports {
         xml.required = true
         html.required = true
@@ -92,18 +184,20 @@ tasks.jacocoTestReport {
 }
 
 tasks.jacocoTestCoverageVerification {
-    dependsOn(tasks.test)
+    executionData.setFrom(
+        fileTree(layout.buildDirectory) {
+            include("jacoco/*.exec")
+        }
+    )
+    dependsOn(unitTest, integrationTest, e2eTest)
     violationRules {
         rule {
-            // Enforce coverage only on the domain and application layers —
-            // pure business logic that must be thoroughly tested.
             element = "CLASS"
-            includes =
-                listOf(
-                    "ch.example.template.*.domain.*",
-                    "ch.example.template.*.application.*",
-                    "ch.example.template.shared.domain.*",
-                )
+            includes = listOf(
+                "ch.example.template.*.domain.*",
+                "ch.example.template.*.application.*",
+                "ch.example.template.shared.domain.*",
+            )
             limit {
                 counter = "LINE"
                 value = "COVEREDRATIO"
@@ -119,7 +213,7 @@ tasks.jacocoTestCoverageVerification {
 }
 
 tasks.check {
-    dependsOn(tasks.jacocoTestCoverageVerification)
+    dependsOn(unitTest, integrationTest, e2eTest, tasks.jacocoTestCoverageVerification)
 }
 
 // ─── OpenAPI Generator ────────────────────────────────────────────────────────
@@ -144,19 +238,9 @@ openApiGenerate {
     )
 }
 
-sourceSets {
-    main {
-        java {
-            srcDir(generatedOpenApiDir.map { it.dir("src/main/java") })
-        }
-    }
-}
-
 tasks.compileJava {
     dependsOn(tasks.openApiGenerate)
 }
-
-// Generated sources must be excluded from Spotless and ArchUnit (handled by target("src/**"))
 
 // ─── Jib ──────────────────────────────────────────────────────────────────────
 

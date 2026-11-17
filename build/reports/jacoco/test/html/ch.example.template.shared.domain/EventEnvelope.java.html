@@ -22,18 +22,18 @@ import java.util.UUID;
 public record EventEnvelope&lt;T&gt;(
         UUID eventId, String type, int version, Instant occurredAt, UUID correlationId, T payload) {
 
-<span class="nc" id="L25">    public EventEnvelope {</span>
-<span class="nc bnc" id="L26" title="All 2 branches missed.">        if (eventId == null) throw new IllegalArgumentException(&quot;eventId must not be null&quot;);</span>
-<span class="nc bnc" id="L27" title="All 4 branches missed.">        if (type == null || type.isBlank()) throw new IllegalArgumentException(&quot;type must not be blank&quot;);</span>
-<span class="nc bnc" id="L28" title="All 2 branches missed.">        if (version &lt; 1) throw new IllegalArgumentException(&quot;version must be &gt;= 1&quot;);</span>
-<span class="nc bnc" id="L29" title="All 2 branches missed.">        if (occurredAt == null) throw new IllegalArgumentException(&quot;occurredAt must not be null&quot;);</span>
-<span class="nc bnc" id="L30" title="All 2 branches missed.">        if (payload == null) throw new IllegalArgumentException(&quot;payload must not be null&quot;);</span>
+<span class="fc" id="L25">    public EventEnvelope {</span>
+<span class="fc bfc" id="L26" title="All 2 branches covered.">        if (eventId == null) throw new IllegalArgumentException(&quot;eventId must not be null&quot;);</span>
+<span class="fc bfc" id="L27" title="All 4 branches covered.">        if (type == null || type.isBlank()) throw new IllegalArgumentException(&quot;type must not be blank&quot;);</span>
+<span class="fc bfc" id="L28" title="All 2 branches covered.">        if (version &lt; 1) throw new IllegalArgumentException(&quot;version must be &gt;= 1&quot;);</span>
+<span class="fc bfc" id="L29" title="All 2 branches covered.">        if (occurredAt == null) throw new IllegalArgumentException(&quot;occurredAt must not be null&quot;);</span>
+<span class="fc bfc" id="L30" title="All 2 branches covered.">        if (payload == null) throw new IllegalArgumentException(&quot;payload must not be null&quot;);</span>
         // correlationId is nullable — may be absent for internally generated events
-<span class="nc" id="L32">    }</span>
+<span class="fc" id="L32">    }</span>
 
     /** Create an envelope with a fresh event ID and the current time. */
     public static &lt;T&gt; EventEnvelope&lt;T&gt; of(String type, int version, UUID correlationId, T payload) {
-<span class="nc" id="L36">        return new EventEnvelope&lt;&gt;(UUID.randomUUID(), type, version, Instant.now(), correlationId, payload);</span>
+<span class="fc" id="L36">        return new EventEnvelope&lt;&gt;(UUID.randomUUID(), type, version, Instant.now(), correlationId, payload);</span>
     }
 }
 </pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

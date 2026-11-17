@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="ch.example.template.transfer.application.TransferServiceTest" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-11-17T15:05:02.981Z" hostname="Luisas-MBP.fritz.box" time="1.46">
+  <properties/>
+  <testcase name="findById_throws_when_not_found()" classname="ch.example.template.transfer.application.TransferServiceTest" time="1.373"/>
+  <testcase name="create_replays_existing_idempotency_response()" classname="ch.example.template.transfer.application.TransferServiceTest" time="0.012"/>
+  <testcase name="findById_returns_transfer_when_found()" classname="ch.example.template.transfer.application.TransferServiceTest" time="0.009"/>
+  <testcase name="create_saves_transfer_and_outbox_event()" classname="ch.example.template.transfer.application.TransferServiceTest" time="0.049"/>
+  <testcase name="create_uses_mdc_correlation_id_when_present()" classname="ch.example.template.transfer.application.TransferServiceTest" time="0.006"/>
+  <system-out><![CDATA[16:05:04.432 [Test worker] INFO ch.example.template.transfer.application.TransferService -- Transfer created id=2f3c86ba-94a7-4490-9d7e-04504ca19cb3 amount=100.00 CHF
+16:05:04.441 [Test worker] INFO ch.example.template.transfer.application.TransferService -- Transfer created id=192742ea-3e9a-4ae6-9e43-e2eb1b3ca87f amount=100.00 CHF
+]]></system-out>
+  <system-err><![CDATA[Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3
+WARNING: A Java agent has been loaded dynamically (/Users/luisa/.gradle/caches/modules-2/files-2.1/net.bytebuddy/byte-buddy-agent/1.17.8/f09415827a71be7ed621c7bd02550678f28bc81c/byte-buddy-agent-1.17.8.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+]]></system-err>
+</testsuite>

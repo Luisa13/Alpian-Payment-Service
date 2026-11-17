@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="ch.example.template.transfer.domain.TransferStatusTest" tests="8" skipped="0" failures="0" errors="0" timestamp="2026-11-17T15:05:04.550Z" hostname="Luisas-MBP.fritz.box" time="0.047">
+  <properties/>
+  <testcase name="settled_code_is_SETTLED()" classname="ch.example.template.transfer.domain.TransferStatusTest" time="0.038"/>
+  <testcase name="fromCode_settled()" classname="ch.example.template.transfer.domain.TransferStatusTest" time="0.0"/>
+  <testcase name="requested_code_is_REQUESTED()" classname="ch.example.template.transfer.domain.TransferStatusTest" time="0.0"/>
+  <testcase name="failed_code_is_FAILED()" classname="ch.example.template.transfer.domain.TransferStatusTest" time="0.001"/>
+  <testcase name="fromCode_unknown_throws()" classname="ch.example.template.transfer.domain.TransferStatusTest" time="0.001"/>
+  <testcase name="fromCode_failed_with_reason()" classname="ch.example.template.transfer.domain.TransferStatusTest" time="0.0"/>
+  <testcase name="fromCode_requested()" classname="ch.example.template.transfer.domain.TransferStatusTest" time="0.001"/>
+  <testcase name="failed_requires_non_blank_reason()" classname="ch.example.template.transfer.domain.TransferStatusTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -18,7 +18,7 @@ import jakarta.annotation.Generated;
  * CreateTransferRequest
  */
 
-@Generated(value = &quot;org.openapitools.codegen.languages.SpringCodegen&quot;, date = &quot;2026-11-17T09:52:58.884124+01:00[Europe/Zurich]&quot;, comments = &quot;Generator version: 7.27.0&quot;)
+@Generated(value = &quot;org.openapitools.codegen.languages.SpringCodegen&quot;, date = &quot;2026-11-17T16:04:41.836084+01:00[Europe/Zurich]&quot;, comments = &quot;Generator version: 7.27.0&quot;)
 public class CreateTransferRequest {
 
   private String amount;
@@ -32,8 +32,8 @@ public class CreateTransferRequest {
   private @Nullable String description;
 
   public CreateTransferRequest() {
-<span class="nc" id="L35">    super();</span>
-<span class="nc" id="L36">  }</span>
+<span class="fc" id="L35">    super();</span>
+<span class="fc" id="L36">  }</span>
 
   /**
    * Constructor with only required parameters
@@ -57,13 +57,13 @@ public class CreateTransferRequest {
   @NotNull @Pattern(regexp = &quot;^\\d+(\\.\\d{1,8})?$&quot;) 
   @JsonProperty(&quot;amount&quot;)
   public String getAmount() {
-<span class="nc" id="L60">    return amount;</span>
+<span class="fc" id="L60">    return amount;</span>
   }
 
   @JsonProperty(&quot;amount&quot;)
   public void setAmount(String amount) {
-<span class="nc" id="L65">    this.amount = amount;</span>
-<span class="nc" id="L66">  }</span>
+<span class="fc" id="L65">    this.amount = amount;</span>
+<span class="fc" id="L66">  }</span>
 
   public CreateTransferRequest currency(String currency) {
 <span class="nc" id="L69">    this.currency = currency;</span>
@@ -77,13 +77,13 @@ public class CreateTransferRequest {
   @NotNull @Pattern(regexp = &quot;^[A-Z]{3}$&quot;) @Size(min = 3, max = 3) 
   @JsonProperty(&quot;currency&quot;)
   public String getCurrency() {
-<span class="nc" id="L80">    return currency;</span>
+<span class="fc" id="L80">    return currency;</span>
   }
 
   @JsonProperty(&quot;currency&quot;)
   public void setCurrency(String currency) {
-<span class="nc" id="L85">    this.currency = currency;</span>
-<span class="nc" id="L86">  }</span>
+<span class="fc" id="L85">    this.currency = currency;</span>
+<span class="fc" id="L86">  }</span>
 
   public CreateTransferRequest sourceAccountId(UUID sourceAccountId) {
 <span class="nc" id="L89">    this.sourceAccountId = sourceAccountId;</span>
@@ -97,13 +97,13 @@ public class CreateTransferRequest {
   @NotNull @Valid 
   @JsonProperty(&quot;sourceAccountId&quot;)
   public UUID getSourceAccountId() {
-<span class="nc" id="L100">    return sourceAccountId;</span>
+<span class="fc" id="L100">    return sourceAccountId;</span>
   }
 
   @JsonProperty(&quot;sourceAccountId&quot;)
   public void setSourceAccountId(UUID sourceAccountId) {
-<span class="nc" id="L105">    this.sourceAccountId = sourceAccountId;</span>
-<span class="nc" id="L106">  }</span>
+<span class="fc" id="L105">    this.sourceAccountId = sourceAccountId;</span>
+<span class="fc" id="L106">  }</span>
 
   public CreateTransferRequest targetAccountId(UUID targetAccountId) {
 <span class="nc" id="L109">    this.targetAccountId = targetAccountId;</span>
@@ -117,13 +117,13 @@ public class CreateTransferRequest {
   @NotNull @Valid 
   @JsonProperty(&quot;targetAccountId&quot;)
   public UUID getTargetAccountId() {
-<span class="nc" id="L120">    return targetAccountId;</span>
+<span class="fc" id="L120">    return targetAccountId;</span>
   }
 
   @JsonProperty(&quot;targetAccountId&quot;)
   public void setTargetAccountId(UUID targetAccountId) {
-<span class="nc" id="L125">    this.targetAccountId = targetAccountId;</span>
-<span class="nc" id="L126">  }</span>
+<span class="fc" id="L125">    this.targetAccountId = targetAccountId;</span>
+<span class="fc" id="L126">  }</span>
 
   public CreateTransferRequest description(@Nullable String description) {
 <span class="nc" id="L129">    this.description = description;</span>
@@ -137,13 +137,13 @@ public class CreateTransferRequest {
   @Size(max = 255) 
   @JsonProperty(&quot;description&quot;)
   public @Nullable String getDescription() {
-<span class="nc" id="L140">    return description;</span>
+<span class="fc" id="L140">    return description;</span>
   }
 
   @JsonProperty(&quot;description&quot;)
   public void setDescription(@Nullable String description) {
-<span class="nc" id="L145">    this.description = description;</span>
-<span class="nc" id="L146">  }</span>
+<span class="fc" id="L145">    this.description = description;</span>
+<span class="fc" id="L146">  }</span>
 
   @Override
   public boolean equals(Object o) {

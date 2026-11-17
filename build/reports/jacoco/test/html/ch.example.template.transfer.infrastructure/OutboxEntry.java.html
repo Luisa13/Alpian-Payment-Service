@@ -10,7 +10,7 @@ import org.springframework.data.relational.core.mapping.Table;
 
 /** Spring Data JDBC entity mapping to the {@code outbox_events} table. */
 @Table(&quot;outbox_events&quot;)
-<span class="nc" id="L13">public class OutboxEntry implements Persistable&lt;UUID&gt; {</span>
+<span class="fc" id="L13">public class OutboxEntry implements Persistable&lt;UUID&gt; {</span>
 
     @Id
     UUID id;
@@ -35,24 +35,24 @@ import org.springframework.data.relational.core.mapping.Table;
 
     @Override
     public UUID getId() {
-<span class="nc" id="L38">        return id;</span>
+<span class="fc" id="L38">        return id;</span>
     }
 
     @Override
     public boolean isNew() {
-<span class="nc" id="L43">        return isNew;</span>
+<span class="fc" id="L43">        return isNew;</span>
     }
 
     public static OutboxEntry of(String topic, String messageKey, String payload) {
-<span class="nc" id="L47">        var e = new OutboxEntry();</span>
-<span class="nc" id="L48">        e.id = UUID.randomUUID();</span>
-<span class="nc" id="L49">        e.isNew = true;</span>
-<span class="nc" id="L50">        e.topic = topic;</span>
-<span class="nc" id="L51">        e.messageKey = messageKey;</span>
-<span class="nc" id="L52">        e.payload = payload;</span>
-<span class="nc" id="L53">        e.createdAt = Instant.now();</span>
-<span class="nc" id="L54">        e.sent = false;</span>
-<span class="nc" id="L55">        return e;</span>
+<span class="fc" id="L47">        var e = new OutboxEntry();</span>
+<span class="fc" id="L48">        e.id = UUID.randomUUID();</span>
+<span class="fc" id="L49">        e.isNew = true;</span>
+<span class="fc" id="L50">        e.topic = topic;</span>
+<span class="fc" id="L51">        e.messageKey = messageKey;</span>
+<span class="fc" id="L52">        e.payload = payload;</span>
+<span class="fc" id="L53">        e.createdAt = Instant.now();</span>
+<span class="fc" id="L54">        e.sent = false;</span>
+<span class="fc" id="L55">        return e;</span>
     }
 }
 </pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

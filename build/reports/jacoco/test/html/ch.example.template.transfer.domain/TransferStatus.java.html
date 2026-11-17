@@ -15,32 +15,32 @@
  */
 public sealed interface TransferStatus permits TransferStatus.Requested, TransferStatus.Settled, TransferStatus.Failed {
 
-<span class="nc" id="L18">    record Requested() implements TransferStatus {}</span>
+<span class="fc" id="L18">    record Requested() implements TransferStatus {}</span>
 
-<span class="nc" id="L20">    record Settled() implements TransferStatus {}</span>
+<span class="fc" id="L20">    record Settled() implements TransferStatus {}</span>
 
     record Failed(String reason) implements TransferStatus {
-<span class="nc" id="L23">        public Failed {</span>
-<span class="nc bnc" id="L24" title="All 4 branches missed.">            if (reason == null || reason.isBlank())</span>
-<span class="nc" id="L25">                throw new IllegalArgumentException(&quot;failure reason must not be blank&quot;);</span>
-<span class="nc" id="L26">        }</span>
+<span class="fc" id="L23">        public Failed {</span>
+<span class="fc bfc" id="L24" title="All 4 branches covered.">            if (reason == null || reason.isBlank())</span>
+<span class="fc" id="L25">                throw new IllegalArgumentException(&quot;failure reason must not be blank&quot;);</span>
+<span class="fc" id="L26">        }</span>
     }
 
     /** Human-readable discriminator stored in the database. */
     default String code() {
-<span class="nc bnc" id="L31" title="All 3 branches missed.">        return switch (this) {</span>
-<span class="nc" id="L32">            case Requested r -&gt; &quot;REQUESTED&quot;;</span>
-<span class="nc" id="L33">            case Settled s -&gt; &quot;SETTLED&quot;;</span>
-<span class="nc" id="L34">            case Failed f -&gt; &quot;FAILED&quot;;</span>
+<span class="fc bfc" id="L31" title="All 3 branches covered.">        return switch (this) {</span>
+<span class="fc" id="L32">            case Requested r -&gt; &quot;REQUESTED&quot;;</span>
+<span class="fc" id="L33">            case Settled s -&gt; &quot;SETTLED&quot;;</span>
+<span class="fc" id="L34">            case Failed f -&gt; &quot;FAILED&quot;;</span>
         };
     }
 
     static TransferStatus fromCode(String code, String failureReason) {
-<span class="nc bnc" id="L39" title="All 4 branches missed.">        return switch (code) {</span>
-<span class="nc" id="L40">            case &quot;REQUESTED&quot; -&gt; new Requested();</span>
-<span class="nc" id="L41">            case &quot;SETTLED&quot; -&gt; new Settled();</span>
-<span class="nc bnc" id="L42" title="All 2 branches missed.">            case &quot;FAILED&quot; -&gt; new Failed(failureReason != null ? failureReason : &quot;unknown&quot;);</span>
-<span class="nc" id="L43">            default -&gt; throw new IllegalArgumentException(&quot;Unknown transfer status code: &quot; + code);</span>
+<span class="fc bfc" id="L39" title="All 4 branches covered.">        return switch (code) {</span>
+<span class="fc" id="L40">            case &quot;REQUESTED&quot; -&gt; new Requested();</span>
+<span class="fc" id="L41">            case &quot;SETTLED&quot; -&gt; new Settled();</span>
+<span class="pc bpc" id="L42" title="1 of 2 branches missed.">            case &quot;FAILED&quot; -&gt; new Failed(failureReason != null ? failureReason : &quot;unknown&quot;);</span>
+<span class="fc" id="L43">            default -&gt; throw new IllegalArgumentException(&quot;Unknown transfer status code: &quot; + code);</span>
         };
     }
 }

@@ -1,4 +1,4 @@
-.PHONY: up down build test run smoke format help
+.PHONY: up down build test test-parallel run smoke format help
 
 COMPOSE = docker compose
 GRADLEW = ./gradlew
@@ -22,8 +22,11 @@ down: ## Stop and remove all containers and networks (data volumes are preserved
 build: ## Compile, format-check, run tests, check coverage (./gradlew build)
 	$(GRADLEW) clean build
 
-test: ## Run tests only (skips Spotless and JaCoCo verification)
-	$(GRADLEW) test
+test: ## Run all tests (unitTest + integrationTest + e2eTest)
+	$(GRADLEW) unitTest integrationTest e2eTest
+
+test-parallel: ## Run all tests in parallel
+	$(GRADLEW) unitTest integrationTest e2eTest --parallel
 
 run: ## Build the app image (Jib) and start it alongside the infra stack
 	$(GRADLEW) jibDockerBuild

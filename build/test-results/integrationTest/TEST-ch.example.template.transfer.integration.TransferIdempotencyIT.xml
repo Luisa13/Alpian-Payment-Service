@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="ch.example.template.transfer.integration.TransferIdempotencyIT" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-11-17T15:05:00.762Z" hostname="Luisas-MBP.fritz.box" time="0.046">
+  <properties/>
+  <testcase name="same_key_same_body_returns_201_both_times()" classname="ch.example.template.transfer.integration.TransferIdempotencyIT" time="0.02"/>
+  <testcase name="missing_idempotency_key_returns_400()" classname="ch.example.template.transfer.integration.TransferIdempotencyIT" time="0.007"/>
+  <testcase name="same_key_different_body_returns_409()" classname="ch.example.template.transfer.integration.TransferIdempotencyIT" time="0.012"/>
+  <system-out><![CDATA[{"@timestamp":"2026-11-17T16:05:00.779852+01:00","@version":"1","message":"Transfer created id=aec4ce4c-e35b-4b8a-902f-79811983791e amount=50.00 CHF","logger_name":"ch.example.template.transfer.application.TransferService","thread_name":"tomcat-handler-1","level":"INFO","level_value":20000,"appName":"payment-service-template","correlationId":"1c3145a6-4665-4b6c-aa37-1d000d39c433","app":"payment-service-template"}
+{"@timestamp":"2026-11-17T16:05:00.785034+01:00","@version":"1","message":"Idempotent replay for key=f2a2826b-869d-4f08-8277-f3383a0f61e6","logger_name":"ch.example.template.transfer.application.TransferService","thread_name":"tomcat-handler-2","level":"DEBUG","level_value":10000,"appName":"payment-service-template","correlationId":"5dc5d511-7b26-4e83-b365-1f26078d7e7b","app":"payment-service-template"}
+{"@timestamp":"2026-11-17T16:05:00.788949+01:00","@version":"1","message":"Transfer settled id=aec4ce4c-e35b-4b8a-902f-79811983791e","logger_name":"ch.example.template.transfer.infrastructure.TransferEventConsumer","thread_name":"org.springframework.kafka.KafkaListenerEndpointContainer#1-0-C-1","level":"INFO","level_value":20000,"appName":"payment-service-template","app":"payment-service-template"}
+{"@timestamp":"2026-11-17T16:05:00.80394+01:00","@version":"1","message":"Transfer created id=ddbbda2b-ed06-4d8a-be66-99ddc585bb12 amount=50.00 CHF","logger_name":"ch.example.template.transfer.application.TransferService","thread_name":"tomcat-handler-4","level":"INFO","level_value":20000,"appName":"payment-service-template","correlationId":"5d2c4d85-8e29-4968-a717-64bf1382365a","app":"payment-service-template"}
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -94,12 +94,13 @@ class OutboxRelay {
             kafkaTemplate.send(record);
         }
 
-        // Mark sent — individual updates avoid UUID type-cast issues with IN-list interpolation
-        Instant sentAt = Instant.now();
+        // Mark sent — Timestamp.from() required: PostgreSQL JDBC cannot infer the SQL type for
+        // java.time.Instant; CAST(:id AS uuid) needed for the same reason with UUID strings.
+        java.sql.Timestamp sentAt = java.sql.Timestamp.from(Instant.now());
         for (OutboxRow row : batch) {
-            jdbc.sql("UPDATE outbox_events SET sent = true, sent_at = :sentAt WHERE id = :id")
+            jdbc.sql("UPDATE outbox_events SET sent = true, sent_at = :sentAt WHERE id = CAST(:id AS uuid)")
                     .param("sentAt", sentAt)
-                    .param("id", row.id())
+                    .param("id", row.id().toString())
                     .update();
         }
 

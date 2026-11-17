@@ -33,28 +33,28 @@ import org.springframework.web.context.request.WebRequest;
  * &lt;/ul&gt;
  */
 @RestControllerAdvice
-<span class="nc" id="L36">public class GlobalExceptionHandler {</span>
+<span class="fc" id="L36">public class GlobalExceptionHandler {</span>
 
-<span class="nc" id="L38">    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);</span>
+<span class="fc" id="L38">    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);</span>
 
     // ── 400 Bad Request ───────────────────────────────────────────────────────
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity&lt;ProblemDetail&gt; handleValidation(MethodArgumentNotValidException ex, WebRequest request) {
 
-<span class="nc" id="L45">        Map&lt;String, String&gt; violations = new LinkedHashMap&lt;&gt;();</span>
-<span class="nc bnc" id="L46" title="All 2 branches missed.">        for (FieldError fe : ex.getBindingResult().getFieldErrors()) {</span>
-<span class="nc" id="L47">            violations.put(fe.getField(), fe.getDefaultMessage());</span>
-<span class="nc" id="L48">        }</span>
+<span class="fc" id="L45">        Map&lt;String, String&gt; violations = new LinkedHashMap&lt;&gt;();</span>
+<span class="fc bfc" id="L46" title="All 2 branches covered.">        for (FieldError fe : ex.getBindingResult().getFieldErrors()) {</span>
+<span class="fc" id="L47">            violations.put(fe.getField(), fe.getDefaultMessage());</span>
+<span class="fc" id="L48">        }</span>
 
-<span class="nc" id="L50">        ProblemDetail problem = ProblemDetail.forStatusAndDetail(</span>
-<span class="nc" id="L51">                HttpStatus.BAD_REQUEST, &quot;Request body has &quot; + violations.size() + &quot; validation error(s)&quot;);</span>
-<span class="nc" id="L52">        problem.setTitle(&quot;Validation Failed&quot;);</span>
-<span class="nc" id="L53">        problem.setType(URI.create(&quot;https://example.com/problems/validation-error&quot;));</span>
-<span class="nc" id="L54">        problem.setInstance(URI.create(requestUri(request)));</span>
-<span class="nc" id="L55">        problem.setProperty(&quot;violations&quot;, violations);</span>
+<span class="fc" id="L50">        ProblemDetail problem = ProblemDetail.forStatusAndDetail(</span>
+<span class="fc" id="L51">                HttpStatus.BAD_REQUEST, &quot;Request body has &quot; + violations.size() + &quot; validation error(s)&quot;);</span>
+<span class="fc" id="L52">        problem.setTitle(&quot;Validation Failed&quot;);</span>
+<span class="fc" id="L53">        problem.setType(URI.create(&quot;https://example.com/problems/validation-error&quot;));</span>
+<span class="fc" id="L54">        problem.setInstance(URI.create(requestUri(request)));</span>
+<span class="fc" id="L55">        problem.setProperty(&quot;violations&quot;, violations);</span>
 
-<span class="nc" id="L57">        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problem);</span>
+<span class="fc" id="L57">        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problem);</span>
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
@@ -71,12 +71,12 @@ import org.springframework.web.context.request.WebRequest;
     @ExceptionHandler(MissingRequestHeaderException.class)
     public ResponseEntity&lt;ProblemDetail&gt; handleMissingHeader(MissingRequestHeaderException ex, WebRequest request) {
 
-<span class="nc" id="L74">        ProblemDetail problem = ProblemDetail.forStatusAndDetail(</span>
-<span class="nc" id="L75">                HttpStatus.BAD_REQUEST, &quot;Required header '&quot; + ex.getHeaderName() + &quot;' is missing&quot;);</span>
-<span class="nc" id="L76">        problem.setTitle(&quot;Missing Header&quot;);</span>
-<span class="nc" id="L77">        problem.setType(URI.create(&quot;https://example.com/problems/missing-header&quot;));</span>
-<span class="nc" id="L78">        problem.setInstance(URI.create(requestUri(request)));</span>
-<span class="nc" id="L79">        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problem);</span>
+<span class="fc" id="L74">        ProblemDetail problem = ProblemDetail.forStatusAndDetail(</span>
+<span class="fc" id="L75">                HttpStatus.BAD_REQUEST, &quot;Required header '&quot; + ex.getHeaderName() + &quot;' is missing&quot;);</span>
+<span class="fc" id="L76">        problem.setTitle(&quot;Missing Header&quot;);</span>
+<span class="fc" id="L77">        problem.setType(URI.create(&quot;https://example.com/problems/missing-header&quot;));</span>
+<span class="fc" id="L78">        problem.setInstance(URI.create(requestUri(request)));</span>
+<span class="fc" id="L79">        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problem);</span>
     }
 
     // ── 404 Not Found ─────────────────────────────────────────────────────────
@@ -84,11 +84,11 @@ import org.springframework.web.context.request.WebRequest;
     @ExceptionHandler(EntityNotFoundException.class)
     public ResponseEntity&lt;ProblemDetail&gt; handleNotFound(EntityNotFoundException ex, WebRequest request) {
 
-<span class="nc" id="L87">        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());</span>
-<span class="nc" id="L88">        problem.setTitle(&quot;Not Found&quot;);</span>
-<span class="nc" id="L89">        problem.setType(URI.create(&quot;https://example.com/problems/not-found&quot;));</span>
-<span class="nc" id="L90">        problem.setInstance(URI.create(requestUri(request)));</span>
-<span class="nc" id="L91">        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(problem);</span>
+<span class="fc" id="L87">        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());</span>
+<span class="fc" id="L88">        problem.setTitle(&quot;Not Found&quot;);</span>
+<span class="fc" id="L89">        problem.setType(URI.create(&quot;https://example.com/problems/not-found&quot;));</span>
+<span class="fc" id="L90">        problem.setInstance(URI.create(requestUri(request)));</span>
+<span class="fc" id="L91">        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(problem);</span>
     }
 
     // ── 409 Conflict ──────────────────────────────────────────────────────────
@@ -97,11 +97,11 @@ import org.springframework.web.context.request.WebRequest;
     public ResponseEntity&lt;ProblemDetail&gt; handleIdempotencyConflict(
             IdempotencyConflictException ex, WebRequest request) {
 
-<span class="nc" id="L100">        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());</span>
-<span class="nc" id="L101">        problem.setTitle(&quot;Idempotency Conflict&quot;);</span>
-<span class="nc" id="L102">        problem.setType(URI.create(&quot;https://example.com/problems/idempotency-conflict&quot;));</span>
-<span class="nc" id="L103">        problem.setInstance(URI.create(requestUri(request)));</span>
-<span class="nc" id="L104">        return ResponseEntity.status(HttpStatus.CONFLICT).body(problem);</span>
+<span class="fc" id="L100">        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());</span>
+<span class="fc" id="L101">        problem.setTitle(&quot;Idempotency Conflict&quot;);</span>
+<span class="fc" id="L102">        problem.setType(URI.create(&quot;https://example.com/problems/idempotency-conflict&quot;));</span>
+<span class="fc" id="L103">        problem.setInstance(URI.create(requestUri(request)));</span>
+<span class="fc" id="L104">        return ResponseEntity.status(HttpStatus.CONFLICT).body(problem);</span>
     }
 
     @ExceptionHandler(OptimisticLockingFailureException.class)
@@ -138,9 +138,9 @@ import org.springframework.web.context.request.WebRequest;
 
     private static String requestUri(WebRequest request) {
         // Strip query string to avoid leaking sensitive parameters into ProblemDetail
-<span class="nc" id="L141">        String desc = request.getDescription(false);</span>
+<span class="fc" id="L141">        String desc = request.getDescription(false);</span>
         // desc format is &quot;uri=/v1/transfers&quot;
-<span class="nc bnc" id="L143" title="All 2 branches missed.">        return desc.startsWith(&quot;uri=&quot;) ? desc.substring(4) : desc;</span>
+<span class="pc bpc" id="L143" title="1 of 2 branches missed.">        return desc.startsWith(&quot;uri=&quot;) ? desc.substring(4) : desc;</span>
     }
 }
 </pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

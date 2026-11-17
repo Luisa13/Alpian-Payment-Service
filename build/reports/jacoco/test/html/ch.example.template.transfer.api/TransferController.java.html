@@ -33,68 +33,68 @@ public class TransferController implements TransfersApi {
     private final TransferService service;
     private final ObjectMapper objectMapper;
 
-<span class="nc" id="L36">    public TransferController(TransferService service, ObjectMapper objectMapper) {</span>
-<span class="nc" id="L37">        this.service = service;</span>
-<span class="nc" id="L38">        this.objectMapper = objectMapper;</span>
-<span class="nc" id="L39">    }</span>
+<span class="fc" id="L36">    public TransferController(TransferService service, ObjectMapper objectMapper) {</span>
+<span class="fc" id="L37">        this.service = service;</span>
+<span class="fc" id="L38">        this.objectMapper = objectMapper;</span>
+<span class="fc" id="L39">    }</span>
 
     @Override
     public ResponseEntity&lt;TransferResponse&gt; createTransfer(
             UUID idempotencyKey, CreateTransferRequest createTransferRequest, String xRequestId) {
 
-<span class="nc" id="L45">        String requestHash = sha256(serialize(createTransferRequest));</span>
-<span class="nc" id="L46">        Money amount =</span>
-<span class="nc" id="L47">                new Money(new BigDecimal(createTransferRequest.getAmount()), createTransferRequest.getCurrency());</span>
-<span class="nc" id="L48">        UUID sourceId = createTransferRequest.getSourceAccountId();</span>
-<span class="nc" id="L49">        UUID targetId = createTransferRequest.getTargetAccountId();</span>
-<span class="nc" id="L50">        String description = createTransferRequest.getDescription();</span>
+<span class="fc" id="L45">        String requestHash = sha256(serialize(createTransferRequest));</span>
+<span class="fc" id="L46">        Money amount =</span>
+<span class="fc" id="L47">                new Money(new BigDecimal(createTransferRequest.getAmount()), createTransferRequest.getCurrency());</span>
+<span class="fc" id="L48">        UUID sourceId = createTransferRequest.getSourceAccountId();</span>
+<span class="fc" id="L49">        UUID targetId = createTransferRequest.getTargetAccountId();</span>
+<span class="fc" id="L50">        String description = createTransferRequest.getDescription();</span>
 
-<span class="nc" id="L52">        var cmd = new TransferService.CreateTransferCommand(amount, sourceId, targetId, description);</span>
-<span class="nc" id="L53">        TransferResult result = service.create(cmd, idempotencyKey.toString(), requestHash);</span>
+<span class="fc" id="L52">        var cmd = new TransferService.CreateTransferCommand(amount, sourceId, targetId, description);</span>
+<span class="fc" id="L53">        TransferResult result = service.create(cmd, idempotencyKey.toString(), requestHash);</span>
 
-<span class="nc bnc" id="L55" title="All 2 branches missed.">        return switch (result) {</span>
-<span class="nc" id="L56">            case TransferResult.Created c -&gt;</span>
-<span class="nc" id="L57">                ResponseEntity.status(HttpStatus.CREATED).body(toResponse(c.transfer()));</span>
-<span class="nc" id="L58">            case TransferResult.Replayed r -&gt; {</span>
+<span class="fc bfc" id="L55" title="All 2 branches covered.">        return switch (result) {</span>
+<span class="fc" id="L56">            case TransferResult.Created c -&gt;</span>
+<span class="fc" id="L57">                ResponseEntity.status(HttpStatus.CREATED).body(toResponse(c.transfer()));</span>
+<span class="fc" id="L58">            case TransferResult.Replayed r -&gt; {</span>
                 // Deserialise the stored response body back to TransferResponse
-<span class="nc" id="L60">                TransferResponse stored = deserializeResponse(r.responseBody());</span>
-<span class="nc" id="L61">                yield ResponseEntity.status(r.responseStatus()).body(stored);</span>
+<span class="fc" id="L60">                TransferResponse stored = deserializeResponse(r.responseBody());</span>
+<span class="fc" id="L61">                yield ResponseEntity.status(r.responseStatus()).body(stored);</span>
             }
         };
     }
 
     @Override
     public ResponseEntity&lt;TransferResponse&gt; getTransfer(UUID id, String xRequestId) {
-<span class="nc" id="L68">        Transfer transfer = service.findById(id);</span>
-<span class="nc" id="L69">        return ResponseEntity.ok(toResponse(transfer));</span>
+<span class="fc" id="L68">        Transfer transfer = service.findById(id);</span>
+<span class="fc" id="L69">        return ResponseEntity.ok(toResponse(transfer));</span>
     }
 
     // ── Mappers ───────────────────────────────────────────────────────────────
 
     private TransferResponse toResponse(Transfer t) {
-<span class="nc" id="L75">        var resp = new TransferResponse();</span>
-<span class="nc" id="L76">        resp.setId(t.getId());</span>
-<span class="nc" id="L77">        resp.setAmount(t.getAmount().amount().toPlainString());</span>
-<span class="nc" id="L78">        resp.setCurrency(t.getAmount().currency());</span>
-<span class="nc" id="L79">        resp.setStatus(TransferResponse.StatusEnum.valueOf(t.getTransferStatus().code()));</span>
-<span class="nc bnc" id="L80" title="All 2 branches missed.">        if (t.getTransferStatus() instanceof TransferStatus.Failed f) {</span>
+<span class="fc" id="L75">        var resp = new TransferResponse();</span>
+<span class="fc" id="L76">        resp.setId(t.getId());</span>
+<span class="fc" id="L77">        resp.setAmount(t.getAmount().amount().toPlainString());</span>
+<span class="fc" id="L78">        resp.setCurrency(t.getAmount().currency());</span>
+<span class="fc" id="L79">        resp.setStatus(TransferResponse.StatusEnum.valueOf(t.getTransferStatus().code()));</span>
+<span class="pc bpc" id="L80" title="1 of 2 branches missed.">        if (t.getTransferStatus() instanceof TransferStatus.Failed f) {</span>
 <span class="nc" id="L81">            resp.setFailureReason(f.reason());</span>
         }
-<span class="nc" id="L83">        resp.setSourceAccountId(t.getSourceAccountId());</span>
-<span class="nc" id="L84">        resp.setTargetAccountId(t.getTargetAccountId());</span>
-<span class="nc" id="L85">        resp.setDescription(t.getDescription());</span>
-<span class="nc bnc" id="L86" title="All 2 branches missed.">        resp.setCreatedAt(t.getCreatedAt() != null ? OffsetDateTime.ofInstant(t.getCreatedAt(), ZoneOffset.UTC) : null);</span>
-<span class="nc bnc" id="L87" title="All 2 branches missed.">        resp.setUpdatedAt(t.getUpdatedAt() != null ? OffsetDateTime.ofInstant(t.getUpdatedAt(), ZoneOffset.UTC) : null);</span>
-<span class="nc" id="L88">        return resp;</span>
+<span class="fc" id="L83">        resp.setSourceAccountId(t.getSourceAccountId());</span>
+<span class="fc" id="L84">        resp.setTargetAccountId(t.getTargetAccountId());</span>
+<span class="fc" id="L85">        resp.setDescription(t.getDescription());</span>
+<span class="pc bpc" id="L86" title="1 of 2 branches missed.">        resp.setCreatedAt(t.getCreatedAt() != null ? OffsetDateTime.ofInstant(t.getCreatedAt(), ZoneOffset.UTC) : null);</span>
+<span class="pc bpc" id="L87" title="1 of 2 branches missed.">        resp.setUpdatedAt(t.getUpdatedAt() != null ? OffsetDateTime.ofInstant(t.getUpdatedAt(), ZoneOffset.UTC) : null);</span>
+<span class="fc" id="L88">        return resp;</span>
     }
 
     private static String sha256(String input) {
         try {
-<span class="nc" id="L93">            var digest = java.security.MessageDigest.getInstance(&quot;SHA-256&quot;);</span>
-<span class="nc" id="L94">            byte[] bytes = digest.digest(input.getBytes(java.nio.charset.StandardCharsets.UTF_8));</span>
-<span class="nc" id="L95">            var sb = new StringBuilder(bytes.length * 2);</span>
-<span class="nc bnc" id="L96" title="All 2 branches missed.">            for (byte b : bytes) sb.append(String.format(&quot;%02x&quot;, b));</span>
-<span class="nc" id="L97">            return sb.toString();</span>
+<span class="fc" id="L93">            var digest = java.security.MessageDigest.getInstance(&quot;SHA-256&quot;);</span>
+<span class="fc" id="L94">            byte[] bytes = digest.digest(input.getBytes(java.nio.charset.StandardCharsets.UTF_8));</span>
+<span class="fc" id="L95">            var sb = new StringBuilder(bytes.length * 2);</span>
+<span class="fc bfc" id="L96" title="All 2 branches covered.">            for (byte b : bytes) sb.append(String.format(&quot;%02x&quot;, b));</span>
+<span class="fc" id="L97">            return sb.toString();</span>
 <span class="nc" id="L98">        } catch (java.security.NoSuchAlgorithmException e) {</span>
 <span class="nc" id="L99">            throw new IllegalStateException(&quot;SHA-256 not available&quot;, e);</span>
         }
@@ -102,7 +102,7 @@ public class TransferController implements TransfersApi {
 
     private String serialize(Object obj) {
         try {
-<span class="nc" id="L105">            return objectMapper.writeValueAsString(obj);</span>
+<span class="fc" id="L105">            return objectMapper.writeValueAsString(obj);</span>
 <span class="nc" id="L106">        } catch (Exception e) {</span>
 <span class="nc" id="L107">            throw new IllegalStateException(&quot;Cannot serialise request for idempotency hash&quot;, e);</span>
         }
@@ -110,7 +110,7 @@ public class TransferController implements TransfersApi {
 
     private TransferResponse deserializeResponse(String json) {
         try {
-<span class="nc" id="L113">            return objectMapper.readValue(json, TransferResponse.class);</span>
+<span class="fc" id="L113">            return objectMapper.readValue(json, TransferResponse.class);</span>
 <span class="nc" id="L114">        } catch (Exception e) {</span>
 <span class="nc" id="L115">            throw new IllegalStateException(&quot;Cannot deserialise stored idempotency response&quot;, e);</span>
         }

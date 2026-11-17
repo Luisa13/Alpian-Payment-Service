@@ -26,7 +26,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
  */
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)
-<span class="nc" id="L29">public class CorrelationIdFilter extends OncePerRequestFilter {</span>
+<span class="fc" id="L29">public class CorrelationIdFilter extends OncePerRequestFilter {</span>
 
     public static final String HEADER = &quot;X-Request-Id&quot;;
     public static final String MDC_KEY = &quot;correlationId&quot;;
@@ -35,20 +35,20 @@ import org.springframework.web.filter.OncePerRequestFilter;
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
 
-<span class="nc" id="L38">        String correlationId = request.getHeader(HEADER);</span>
-<span class="nc bnc" id="L39" title="All 4 branches missed.">        if (correlationId == null || correlationId.isBlank()) {</span>
-<span class="nc" id="L40">            correlationId = UUID.randomUUID().toString();</span>
+<span class="fc" id="L38">        String correlationId = request.getHeader(HEADER);</span>
+<span class="pc bpc" id="L39" title="3 of 4 branches missed.">        if (correlationId == null || correlationId.isBlank()) {</span>
+<span class="fc" id="L40">            correlationId = UUID.randomUUID().toString();</span>
         }
 
-<span class="nc" id="L43">        MDC.put(MDC_KEY, correlationId);</span>
-<span class="nc" id="L44">        response.setHeader(HEADER, correlationId);</span>
+<span class="fc" id="L43">        MDC.put(MDC_KEY, correlationId);</span>
+<span class="fc" id="L44">        response.setHeader(HEADER, correlationId);</span>
 
         try {
-<span class="nc" id="L47">            chain.doFilter(request, response);</span>
+<span class="fc" id="L47">            chain.doFilter(request, response);</span>
         } finally {
             // Always clear MDC to avoid leaking values across virtual-thread re-use
-<span class="nc" id="L50">            MDC.remove(MDC_KEY);</span>
+<span class="fc" id="L50">            MDC.remove(MDC_KEY);</span>
         }
-<span class="nc" id="L52">    }</span>
+<span class="fc" id="L52">    }</span>
 }
 </pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

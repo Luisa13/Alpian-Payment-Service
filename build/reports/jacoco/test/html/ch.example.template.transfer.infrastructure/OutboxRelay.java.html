@@ -45,75 +45,76 @@ class OutboxRelay {
 
     private final JdbcClient jdbc;
     private final KafkaTemplate&lt;String, String&gt; kafkaTemplate;
-<span class="nc" id="L48">    private final AtomicLong backlogGauge = new AtomicLong(0);</span>
+<span class="fc" id="L48">    private final AtomicLong backlogGauge = new AtomicLong(0);</span>
 
     @Value(&quot;${app.outbox.relay-interval-ms:1000}&quot;)
     private long relayIntervalMs;
 
-<span class="nc" id="L53">    OutboxRelay(JdbcClient jdbc, KafkaTemplate&lt;String, String&gt; kafkaTemplate, MeterRegistry meters) {</span>
-<span class="nc" id="L54">        this.jdbc = jdbc;</span>
-<span class="nc" id="L55">        this.kafkaTemplate = kafkaTemplate;</span>
+<span class="fc" id="L53">    OutboxRelay(JdbcClient jdbc, KafkaTemplate&lt;String, String&gt; kafkaTemplate, MeterRegistry meters) {</span>
+<span class="fc" id="L54">        this.jdbc = jdbc;</span>
+<span class="fc" id="L55">        this.kafkaTemplate = kafkaTemplate;</span>
 
-<span class="nc" id="L57">        Gauge.builder(&quot;outbox.backlog.events&quot;, backlogGauge, AtomicLong::get)</span>
-<span class="nc" id="L58">                .description(&quot;Number of unsent outbox events waiting to be published to Kafka&quot;)</span>
-<span class="nc" id="L59">                .register(meters);</span>
-<span class="nc" id="L60">    }</span>
+<span class="fc" id="L57">        Gauge.builder(&quot;outbox.backlog.events&quot;, backlogGauge, AtomicLong::get)</span>
+<span class="fc" id="L58">                .description(&quot;Number of unsent outbox events waiting to be published to Kafka&quot;)</span>
+<span class="fc" id="L59">                .register(meters);</span>
+<span class="fc" id="L60">    }</span>
 
     @PostConstruct
     void initBacklogGauge() {
-<span class="nc" id="L64">        refreshBacklog();</span>
-<span class="nc" id="L65">    }</span>
+<span class="fc" id="L64">        refreshBacklog();</span>
+<span class="fc" id="L65">    }</span>
 
     @Scheduled(fixedDelayString = &quot;${app.outbox.relay-interval-ms:1000}&quot;)
     @Transactional
     public void relay() {
-<span class="nc" id="L70">        List&lt;OutboxRow&gt; batch =</span>
-<span class="nc" id="L71">                jdbc.sql(&quot;&quot;&quot;</span>
+<span class="fc" id="L70">        List&lt;OutboxRow&gt; batch =</span>
+<span class="fc" id="L71">                jdbc.sql(&quot;&quot;&quot;</span>
                         SELECT id, topic, message_key, payload
                         FROM outbox_events
                         WHERE sent = false
                         ORDER BY created_at ASC
                         LIMIT :limit
                         FOR UPDATE SKIP LOCKED
-<span class="nc" id="L78">                        &quot;&quot;&quot;).param(&quot;limit&quot;, BATCH_SIZE).query(OutboxRow.class).list();</span>
+<span class="fc" id="L78">                        &quot;&quot;&quot;).param(&quot;limit&quot;, BATCH_SIZE).query(OutboxRow.class).list();</span>
 
-<span class="nc bnc" id="L80" title="All 2 branches missed.">        if (batch.isEmpty()) {</span>
-<span class="nc" id="L81">            backlogGauge.set(0);</span>
-<span class="nc" id="L82">            return;</span>
+<span class="fc bfc" id="L80" title="All 2 branches covered.">        if (batch.isEmpty()) {</span>
+<span class="fc" id="L81">            backlogGauge.set(0);</span>
+<span class="fc" id="L82">            return;</span>
         }
 
-<span class="nc bnc" id="L85" title="All 2 branches missed.">        for (OutboxRow row : batch) {</span>
-<span class="nc" id="L86">            var headers = new RecordHeaders();</span>
-<span class="nc" id="L87">            String correlationId = MDC.get(CorrelationIdFilter.MDC_KEY);</span>
-<span class="nc bnc" id="L88" title="All 2 branches missed.">            if (correlationId != null) {</span>
+<span class="fc bfc" id="L85" title="All 2 branches covered.">        for (OutboxRow row : batch) {</span>
+<span class="fc" id="L86">            var headers = new RecordHeaders();</span>
+<span class="fc" id="L87">            String correlationId = MDC.get(CorrelationIdFilter.MDC_KEY);</span>
+<span class="pc bpc" id="L88" title="1 of 2 branches missed.">            if (correlationId != null) {</span>
 <span class="nc" id="L89">                headers.add(CORRELATION_HEADER, correlationId.getBytes());</span>
             }
 
-<span class="nc" id="L92">            var record = new ProducerRecord&lt;String, String&gt;(</span>
-<span class="nc" id="L93">                    row.topic(), null, null, row.messageKey(), row.payload(), headers);</span>
-<span class="nc" id="L94">            kafkaTemplate.send(record);</span>
-<span class="nc" id="L95">        }</span>
+<span class="fc" id="L92">            var record = new ProducerRecord&lt;String, String&gt;(</span>
+<span class="fc" id="L93">                    row.topic(), null, null, row.messageKey(), row.payload(), headers);</span>
+<span class="fc" id="L94">            kafkaTemplate.send(record);</span>
+<span class="fc" id="L95">        }</span>
 
-        // Mark sent — individual updates avoid UUID type-cast issues with IN-list interpolation
-<span class="nc" id="L98">        Instant sentAt = Instant.now();</span>
-<span class="nc bnc" id="L99" title="All 2 branches missed.">        for (OutboxRow row : batch) {</span>
-<span class="nc" id="L100">            jdbc.sql(&quot;UPDATE outbox_events SET sent = true, sent_at = :sentAt WHERE id = :id&quot;)</span>
-<span class="nc" id="L101">                    .param(&quot;sentAt&quot;, sentAt)</span>
-<span class="nc" id="L102">                    .param(&quot;id&quot;, row.id())</span>
-<span class="nc" id="L103">                    .update();</span>
-<span class="nc" id="L104">        }</span>
+        // Mark sent — Timestamp.from() required: PostgreSQL JDBC cannot infer the SQL type for
+        // java.time.Instant; CAST(:id AS uuid) needed for the same reason with UUID strings.
+<span class="fc" id="L99">        java.sql.Timestamp sentAt = java.sql.Timestamp.from(Instant.now());</span>
+<span class="fc bfc" id="L100" title="All 2 branches covered.">        for (OutboxRow row : batch) {</span>
+<span class="fc" id="L101">            jdbc.sql(&quot;UPDATE outbox_events SET sent = true, sent_at = :sentAt WHERE id = CAST(:id AS uuid)&quot;)</span>
+<span class="fc" id="L102">                    .param(&quot;sentAt&quot;, sentAt)</span>
+<span class="fc" id="L103">                    .param(&quot;id&quot;, row.id().toString())</span>
+<span class="fc" id="L104">                    .update();</span>
+<span class="fc" id="L105">        }</span>
 
-<span class="nc" id="L106">        refreshBacklog();</span>
-<span class="nc" id="L107">    }</span>
+<span class="fc" id="L107">        refreshBacklog();</span>
+<span class="fc" id="L108">    }</span>
 
     private void refreshBacklog() {
-<span class="nc" id="L110">        Long count = jdbc.sql(&quot;SELECT COUNT(*) FROM outbox_events WHERE sent = false&quot;)</span>
-<span class="nc" id="L111">                .query(Long.class)</span>
-<span class="nc" id="L112">                .single();</span>
-<span class="nc bnc" id="L113" title="All 2 branches missed.">        backlogGauge.set(count != null ? count : 0);</span>
-<span class="nc" id="L114">    }</span>
+<span class="fc" id="L111">        Long count = jdbc.sql(&quot;SELECT COUNT(*) FROM outbox_events WHERE sent = false&quot;)</span>
+<span class="fc" id="L112">                .query(Long.class)</span>
+<span class="fc" id="L113">                .single();</span>
+<span class="pc bpc" id="L114" title="1 of 2 branches missed.">        backlogGauge.set(count != null ? count : 0);</span>
+<span class="fc" id="L115">    }</span>
 
     /** Projection for the SKIP LOCKED query result. */
-<span class="nc" id="L117">    record OutboxRow(java.util.UUID id, String topic, String messageKey, String payload) {}</span>
+<span class="fc" id="L118">    record OutboxRow(java.util.UUID id, String topic, String messageKey, String payload) {}</span>
 }
 </pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

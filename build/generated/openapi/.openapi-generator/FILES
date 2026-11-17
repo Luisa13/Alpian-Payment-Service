@@ -1,3 +1,4 @@
+.openapi-generator-ignore
 README.md
 pom.xml
 src/main/java/ch/example/template/transfer/api/generated/ApiUtil.java
