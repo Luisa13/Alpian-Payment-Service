@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="ch.example.template.transfer.integration.OutboxPublishIT" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-11-17T15:04:58.837Z" hostname="Luisas-MBP.fritz.box" time="0.769">
+  <properties/>
+  <testcase name="post_transfer_publishes_transfers_requested_event()" classname="ch.example.template.transfer.integration.OutboxPublishIT" time="0.759"/>
+  <system-out><![CDATA[{"@timestamp":"2026-11-17T16:04:59.053701+01:00","@version":"1","message":"Transfer created id=010e531d-813f-45f3-99bc-b9edecaf4772 amount=25.00 CHF","logger_name":"ch.example.template.transfer.application.TransferService","thread_name":"tomcat-handler-0","level":"INFO","level_value":20000,"appName":"payment-service-template","correlationId":"82a9f0bb-2a98-4644-9fbe-8809bc37572d","app":"payment-service-template"}
+{"@timestamp":"2026-11-17T16:04:59.099555+01:00","@version":"1","message":"Transfer settled id=010e531d-813f-45f3-99bc-b9edecaf4772","logger_name":"ch.example.template.transfer.infrastructure.TransferEventConsumer","thread_name":"org.springframework.kafka.KafkaListenerEndpointContainer#1-0-C-1","level":"INFO","level_value":20000,"appName":"payment-service-template","app":"payment-service-template"}
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

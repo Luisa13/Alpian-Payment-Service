@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CreateTransferRequest.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">payment-service-template</a> &gt; <a href="index.source.html" class="el_package">ch.example.template.transfer.api.generated.model</a> &gt; <span class="el_source">CreateTransferRequest.java</span></div><h1>CreateTransferRequest.java</h1><pre class="source lang-java linenums">package ch.example.template.transfer.api.generated.model;
+
+import java.net.URI;
+import java.util.Objects;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import java.util.UUID;
+import org.springframework.lang.Nullable;
+import java.time.OffsetDateTime;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.*;
+
+
+import java.util.*;
+import jakarta.annotation.Generated;
+
+/**
+ * CreateTransferRequest
+ */
+
+@Generated(value = &quot;org.openapitools.codegen.languages.SpringCodegen&quot;, date = &quot;2026-11-17T16:04:41.836084+01:00[Europe/Zurich]&quot;, comments = &quot;Generator version: 7.27.0&quot;)
+public class CreateTransferRequest {
+
+  private String amount;
+
+  private String currency;
+
+  private UUID sourceAccountId;
+
+  private UUID targetAccountId;
+
+  private @Nullable String description;
+
+  public CreateTransferRequest() {
+<span class="fc" id="L35">    super();</span>
+<span class="fc" id="L36">  }</span>
+
+  /**
+   * Constructor with only required parameters
+   */
+<span class="nc" id="L41">  public CreateTransferRequest(String amount, String currency, UUID sourceAccountId, UUID targetAccountId) {</span>
+<span class="nc" id="L42">    this.amount = amount;</span>
+<span class="nc" id="L43">    this.currency = currency;</span>
+<span class="nc" id="L44">    this.sourceAccountId = sourceAccountId;</span>
+<span class="nc" id="L45">    this.targetAccountId = targetAccountId;</span>
+<span class="nc" id="L46">  }</span>
+
+  public CreateTransferRequest amount(String amount) {
+<span class="nc" id="L49">    this.amount = amount;</span>
+<span class="nc" id="L50">    return this;</span>
+  }
+
+  /**
+   * Decimal amount as a string to preserve precision. No scientific notation. Max 2 decimal places for most currencies. 
+   * @return amount
+   */
+  @NotNull @Pattern(regexp = &quot;^\\d+(\\.\\d{1,8})?$&quot;) 
+  @JsonProperty(&quot;amount&quot;)
+  public String getAmount() {
+<span class="fc" id="L60">    return amount;</span>
+  }
+
+  @JsonProperty(&quot;amount&quot;)
+  public void setAmount(String amount) {
+<span class="fc" id="L65">    this.amount = amount;</span>
+<span class="fc" id="L66">  }</span>
+
+  public CreateTransferRequest currency(String currency) {
+<span class="nc" id="L69">    this.currency = currency;</span>
+<span class="nc" id="L70">    return this;</span>
+  }
+
+  /**
+   * ISO 4217 currency code
+   * @return currency
+   */
+  @NotNull @Pattern(regexp = &quot;^[A-Z]{3}$&quot;) @Size(min = 3, max = 3) 
+  @JsonProperty(&quot;currency&quot;)
+  public String getCurrency() {
+<span class="fc" id="L80">    return currency;</span>
+  }
+
+  @JsonProperty(&quot;currency&quot;)
+  public void setCurrency(String currency) {
+<span class="fc" id="L85">    this.currency = currency;</span>
+<span class="fc" id="L86">  }</span>
+
+  public CreateTransferRequest sourceAccountId(UUID sourceAccountId) {
+<span class="nc" id="L89">    this.sourceAccountId = sourceAccountId;</span>
+<span class="nc" id="L90">    return this;</span>
+  }
+
+  /**
+   * Account to debit
+   * @return sourceAccountId
+   */
+  @NotNull @Valid 
+  @JsonProperty(&quot;sourceAccountId&quot;)
+  public UUID getSourceAccountId() {
+<span class="fc" id="L100">    return sourceAccountId;</span>
+  }
+
+  @JsonProperty(&quot;sourceAccountId&quot;)
+  public void setSourceAccountId(UUID sourceAccountId) {
+<span class="fc" id="L105">    this.sourceAccountId = sourceAccountId;</span>
+<span class="fc" id="L106">  }</span>
+
+  public CreateTransferRequest targetAccountId(UUID targetAccountId) {
+<span class="nc" id="L109">    this.targetAccountId = targetAccountId;</span>
+<span class="nc" id="L110">    return this;</span>
+  }
+
+  /**
+   * Account to credit
+   * @return targetAccountId
+   */
+  @NotNull @Valid 
+  @JsonProperty(&quot;targetAccountId&quot;)
+  public UUID getTargetAccountId() {
+<span class="fc" id="L120">    return targetAccountId;</span>
+  }
+
+  @JsonProperty(&quot;targetAccountId&quot;)
+  public void setTargetAccountId(UUID targetAccountId) {
+<span class="fc" id="L125">    this.targetAccountId = targetAccountId;</span>
+<span class="fc" id="L126">  }</span>
+
+  public CreateTransferRequest description(@Nullable String description) {
+<span class="nc" id="L129">    this.description = description;</span>
+<span class="nc" id="L130">    return this;</span>
+  }
+
+  /**
+   * Human-readable purpose
+   * @return description
+   */
+  @Size(max = 255) 
+  @JsonProperty(&quot;description&quot;)
+  public @Nullable String getDescription() {
+<span class="fc" id="L140">    return description;</span>
+  }
+
+  @JsonProperty(&quot;description&quot;)
+  public void setDescription(@Nullable String description) {
+<span class="fc" id="L145">    this.description = description;</span>
+<span class="fc" id="L146">  }</span>
+
+  @Override
+  public boolean equals(Object o) {
+<span class="nc bnc" id="L150" title="All 2 branches missed.">    if (this == o) {</span>
+<span class="nc" id="L151">      return true;</span>
+    }
+<span class="nc bnc" id="L153" title="All 4 branches missed.">    if (o == null || getClass() != o.getClass()) {</span>
+<span class="nc" id="L154">      return false;</span>
+    }
+<span class="nc" id="L156">    CreateTransferRequest createTransferRequest = (CreateTransferRequest) o;</span>
+<span class="nc bnc" id="L157" title="All 2 branches missed.">    return Objects.equals(this.amount, createTransferRequest.amount) &amp;&amp;</span>
+<span class="nc bnc" id="L158" title="All 2 branches missed.">        Objects.equals(this.currency, createTransferRequest.currency) &amp;&amp;</span>
+<span class="nc bnc" id="L159" title="All 2 branches missed.">        Objects.equals(this.sourceAccountId, createTransferRequest.sourceAccountId) &amp;&amp;</span>
+<span class="nc bnc" id="L160" title="All 2 branches missed.">        Objects.equals(this.targetAccountId, createTransferRequest.targetAccountId) &amp;&amp;</span>
+<span class="nc bnc" id="L161" title="All 2 branches missed.">        Objects.equals(this.description, createTransferRequest.description);</span>
+  }
+
+  @Override
+  public int hashCode() {
+<span class="nc" id="L166">    return Objects.hash(amount, currency, sourceAccountId, targetAccountId, description);</span>
+  }
+
+  @Override
+  public String toString() {
+<span class="nc" id="L171">    StringBuilder sb = new StringBuilder();</span>
+<span class="nc" id="L172">    sb.append(&quot;class CreateTransferRequest {\n&quot;);</span>
+<span class="nc" id="L173">    sb.append(&quot;    amount: &quot;).append(toIndentedString(amount)).append(&quot;\n&quot;);</span>
+<span class="nc" id="L174">    sb.append(&quot;    currency: &quot;).append(toIndentedString(currency)).append(&quot;\n&quot;);</span>
+<span class="nc" id="L175">    sb.append(&quot;    sourceAccountId: &quot;).append(toIndentedString(sourceAccountId)).append(&quot;\n&quot;);</span>
+<span class="nc" id="L176">    sb.append(&quot;    targetAccountId: &quot;).append(toIndentedString(targetAccountId)).append(&quot;\n&quot;);</span>
+<span class="nc" id="L177">    sb.append(&quot;    description: &quot;).append(toIndentedString(description)).append(&quot;\n&quot;);</span>
+<span class="nc" id="L178">    sb.append(&quot;}&quot;);</span>
+<span class="nc" id="L179">    return sb.toString();</span>
+  }
+
+  /**
+   * Convert the given object to string with each line indented by 4 spaces
+   * (except the first line).
+   */
+  private String toIndentedString(@Nullable Object o) {
+<span class="nc bnc" id="L187" title="All 2 branches missed.">    return o == null ? &quot;null&quot; : o.toString().replace(&quot;\n&quot;, &quot;\n    &quot;);</span>
+  }
+}
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

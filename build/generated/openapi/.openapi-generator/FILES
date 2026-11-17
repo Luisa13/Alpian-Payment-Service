@@ -1,0 +1,9 @@
+.openapi-generator-ignore
+README.md
+pom.xml
+src/main/java/ch/example/template/transfer/api/generated/ApiUtil.java
+src/main/java/ch/example/template/transfer/api/generated/TransfersApi.java
+src/main/java/ch/example/template/transfer/api/generated/model/CreateTransferRequest.java
+src/main/java/ch/example/template/transfer/api/generated/model/ProblemDetail.java
+src/main/java/ch/example/template/transfer/api/generated/model/TransferResponse.java
+src/main/java/ch/example/template/transfer/api/generated/model/ValidationProblemDetail.java

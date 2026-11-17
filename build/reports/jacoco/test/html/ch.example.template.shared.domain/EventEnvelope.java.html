@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>EventEnvelope.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">payment-service-template</a> &gt; <a href="index.source.html" class="el_package">ch.example.template.shared.domain</a> &gt; <span class="el_source">EventEnvelope.java</span></div><h1>EventEnvelope.java</h1><pre class="source lang-java linenums">package ch.example.template.shared.domain;
+
+import java.time.Instant;
+import java.util.UUID;
+
+/**
+ * Versioned event envelope for all domain events published to Kafka.
+ *
+ * &lt;p&gt;Every event is wrapped in this envelope before serialisation. Consumers can route on {@code
+ * type} and reject on unknown {@code version} before deserialising the payload.
+ *
+ * &lt;p&gt;Future options (noted in ADR-0004):
+ *
+ * &lt;ul&gt;
+ *   &lt;li&gt;Schema Registry + Avro: replace this envelope with a generated Avro record and register
+ *       the schema centrally.
+ *   &lt;li&gt;CloudEvents spec: adopt the CNCF CloudEvents envelope format for interoperability.
+ * &lt;/ul&gt;
+ *
+ * @param &lt;T&gt; the payload type (should be a serialisable POJO or record)
+ */
+public record EventEnvelope&lt;T&gt;(
+        UUID eventId, String type, int version, Instant occurredAt, UUID correlationId, T payload) {
+
+<span class="fc" id="L25">    public EventEnvelope {</span>
+<span class="fc bfc" id="L26" title="All 2 branches covered.">        if (eventId == null) throw new IllegalArgumentException(&quot;eventId must not be null&quot;);</span>
+<span class="fc bfc" id="L27" title="All 4 branches covered.">        if (type == null || type.isBlank()) throw new IllegalArgumentException(&quot;type must not be blank&quot;);</span>
+<span class="fc bfc" id="L28" title="All 2 branches covered.">        if (version &lt; 1) throw new IllegalArgumentException(&quot;version must be &gt;= 1&quot;);</span>
+<span class="fc bfc" id="L29" title="All 2 branches covered.">        if (occurredAt == null) throw new IllegalArgumentException(&quot;occurredAt must not be null&quot;);</span>
+<span class="fc bfc" id="L30" title="All 2 branches covered.">        if (payload == null) throw new IllegalArgumentException(&quot;payload must not be null&quot;);</span>
+        // correlationId is nullable — may be absent for internally generated events
+<span class="fc" id="L32">    }</span>
+
+    /** Create an envelope with a fresh event ID and the current time. */
+    public static &lt;T&gt; EventEnvelope&lt;T&gt; of(String type, int version, UUID correlationId, T payload) {
+<span class="fc" id="L36">        return new EventEnvelope&lt;&gt;(UUID.randomUUID(), type, version, Instant.now(), correlationId, payload);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

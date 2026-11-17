@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>TransferService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">payment-service-template</a> &gt; <a href="index.source.html" class="el_package">ch.example.template.transfer.application</a> &gt; <span class="el_source">TransferService.java</span></div><h1>TransferService.java</h1><pre class="source lang-java linenums">package ch.example.template.transfer.application;
+
+import ch.example.template.shared.domain.EntityNotFoundException;
+import ch.example.template.shared.domain.EventEnvelope;
+import ch.example.template.shared.domain.Money;
+import ch.example.template.shared.infrastructure.IdempotencyStore;
+import ch.example.template.transfer.domain.Transfer;
+import ch.example.template.transfer.domain.TransferRepository;
+import ch.example.template.transfer.infrastructure.OutboxEntry;
+import ch.example.template.transfer.infrastructure.OutboxRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+/**
+ * Orchestrates the transfer creation flow.
+ *
+ * &lt;p&gt;Idempotency + outbox are written atomically in one transaction:
+ *
+ * &lt;pre&gt;
+ *   BEGIN
+ *     INSERT transfers
+ *     INSERT outbox_events
+ *     INSERT idempotency_keys
+ *   COMMIT
+ * &lt;/pre&gt;
+ *
+ * The {@link ch.example.template.transfer.infrastructure.OutboxRelay} picks up the outbox row
+ * asynchronously and publishes it to Kafka.
+ */
+@Service
+public class TransferService {
+
+<span class="fc" id="L41">    private static final Logger log = LoggerFactory.getLogger(TransferService.class);</span>
+
+    public static final String TOPIC_REQUESTED = &quot;transfers.requested&quot;;
+    public static final String EVENT_TYPE_REQUESTED = &quot;transfer.requested&quot;;
+    public static final int EVENT_VERSION = 1;
+
+    private final TransferRepository transfers;
+    private final OutboxRepository outbox;
+    private final IdempotencyStore idempotency;
+    private final ObjectMapper objectMapper;
+
+    private final Counter createdCounter;
+
+    public TransferService(
+            TransferRepository transfers,
+            OutboxRepository outbox,
+            IdempotencyStore idempotency,
+            ObjectMapper objectMapper,
+<span class="fc" id="L59">            MeterRegistry meters) {</span>
+<span class="fc" id="L60">        this.transfers = transfers;</span>
+<span class="fc" id="L61">        this.outbox = outbox;</span>
+<span class="fc" id="L62">        this.idempotency = idempotency;</span>
+<span class="fc" id="L63">        this.objectMapper = objectMapper;</span>
+<span class="fc" id="L64">        this.createdCounter = Counter.builder(&quot;transfers.created&quot;)</span>
+<span class="fc" id="L65">                .description(&quot;Number of transfers successfully initiated&quot;)</span>
+<span class="fc" id="L66">                .register(meters);</span>
+<span class="fc" id="L67">    }</span>
+
+    /** Creates a new transfer or replays the original response for a duplicate idempotency key. */
+    @Transactional
+    public TransferResult create(CreateTransferCommand cmd, String idempotencyKey, String requestHash) {
+
+        // ── Idempotency check ──────────────────────────────────────────────────
+<span class="fc" id="L74">        var existing = idempotency.findExisting(idempotencyKey, requestHash);</span>
+<span class="fc bfc" id="L75" title="All 2 branches covered.">        if (existing.isPresent()) {</span>
+<span class="fc" id="L76">            log.debug(&quot;Idempotent replay for key={}&quot;, idempotencyKey);</span>
+<span class="fc" id="L77">            return TransferResult.replay(existing.get());</span>
+        }
+
+        // ── Business logic ────────────────────────────────────────────────────
+<span class="fc" id="L81">        Transfer transfer =</span>
+<span class="fc" id="L82">                Transfer.create(cmd.amount(), cmd.sourceAccountId(), cmd.targetAccountId(), cmd.description());</span>
+<span class="fc" id="L83">        transfers.save(transfer);</span>
+
+        // ── Outbox ────────────────────────────────────────────────────────────
+<span class="fc" id="L86">        UUID correlationId = correlationUuid();</span>
+<span class="fc" id="L87">        EventEnvelope&lt;TransferPayload&gt; envelope =</span>
+<span class="fc" id="L88">                EventEnvelope.of(EVENT_TYPE_REQUESTED, EVENT_VERSION, correlationId, TransferPayload.from(transfer));</span>
+<span class="fc" id="L89">        String payloadJson = serialize(envelope);</span>
+<span class="fc" id="L90">        outbox.save(OutboxEntry.of(TOPIC_REQUESTED, transfer.getId().toString(), payloadJson));</span>
+
+        // ── Store idempotency response ─────────────────────────────────────────
+<span class="fc" id="L93">        String responseBody = serialize(toResponse(transfer));</span>
+<span class="fc" id="L94">        idempotency.storeResponse(idempotencyKey, requestHash, 201, responseBody);</span>
+
+<span class="fc" id="L96">        createdCounter.increment();</span>
+
+<span class="fc" id="L98">        log.info(&quot;Transfer created id={} amount={}&quot;, transfer.getId(), transfer.getAmount());</span>
+<span class="fc" id="L99">        return TransferResult.created(transfer);</span>
+    }
+
+    public Transfer findById(UUID id) {
+<span class="fc" id="L103">        return transfers.findById(id).orElseThrow(() -&gt; new EntityNotFoundException(&quot;Transfer&quot;, id));</span>
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    private UUID correlationUuid() {
+<span class="fc" id="L109">        String mdcValue = MDC.get(&quot;correlationId&quot;);</span>
+<span class="fc bfc" id="L110" title="All 2 branches covered.">        if (mdcValue != null) {</span>
+            try {
+<span class="fc" id="L112">                return UUID.fromString(mdcValue);</span>
+<span class="nc" id="L113">            } catch (IllegalArgumentException ignored) {</span>
+            }
+        }
+<span class="fc" id="L116">        return UUID.randomUUID();</span>
+    }
+
+    private String serialize(Object obj) {
+        try {
+<span class="fc" id="L121">            return objectMapper.writeValueAsString(obj);</span>
+<span class="nc" id="L122">        } catch (JsonProcessingException e) {</span>
+<span class="nc" id="L123">            throw new IllegalStateException(&quot;Failed to serialise object&quot;, e);</span>
+        }
+    }
+
+    private TransferResponse toResponse(Transfer t) {
+<span class="fc" id="L128">        return new TransferResponse(</span>
+<span class="fc" id="L129">                t.getId(),</span>
+<span class="fc" id="L130">                t.getAmount().amount().toPlainString(),</span>
+<span class="fc" id="L131">                t.getAmount().currency(),</span>
+<span class="fc" id="L132">                t.getTransferStatus().code(),</span>
+                null,
+<span class="fc" id="L134">                t.getSourceAccountId(),</span>
+<span class="fc" id="L135">                t.getTargetAccountId(),</span>
+<span class="fc" id="L136">                t.getDescription(),</span>
+<span class="fc" id="L137">                t.getCreatedAt(),</span>
+<span class="fc" id="L138">                t.getUpdatedAt());</span>
+    }
+
+    // ── Nested types ──────────────────────────────────────────────────────────
+
+<span class="fc" id="L143">    public record CreateTransferCommand(Money amount, UUID sourceAccountId, UUID targetAccountId, String description) {}</span>
+
+    /**
+     * Kafka event payload for {@code transfers.requested}. Versioned independently of the HTTP
+     * response schema.
+     */
+<span class="fc" id="L149">    public record TransferPayload(</span>
+            UUID transferId,
+            String amount,
+            String currency,
+            UUID sourceAccountId,
+            UUID targetAccountId,
+            String description) {
+
+        public static TransferPayload from(Transfer t) {
+<span class="fc" id="L158">            return new TransferPayload(</span>
+<span class="fc" id="L159">                    t.getId(),</span>
+<span class="fc" id="L160">                    t.getAmount().amount().toPlainString(),</span>
+<span class="fc" id="L161">                    t.getAmount().currency(),</span>
+<span class="fc" id="L162">                    t.getSourceAccountId(),</span>
+<span class="fc" id="L163">                    t.getTargetAccountId(),</span>
+<span class="fc" id="L164">                    t.getDescription());</span>
+        }
+    }
+
+    /** HTTP response DTO — also stored verbatim in the idempotency table. */
+<span class="fc" id="L169">    public record TransferResponse(</span>
+            UUID id,
+            String amount,
+            String currency,
+            String status,
+            String failureReason,
+            UUID sourceAccountId,
+            UUID targetAccountId,
+            String description,
+            java.time.Instant createdAt,
+            java.time.Instant updatedAt) {}
+
+    /** Discriminated result: brand-new creation vs idempotent replay. */
+    public sealed interface TransferResult permits TransferResult.Created, TransferResult.Replayed {
+
+<span class="fc" id="L184">        record Created(Transfer transfer) implements TransferResult {}</span>
+
+<span class="fc" id="L186">        record Replayed(int responseStatus, String responseBody) implements TransferResult {}</span>
+
+        static TransferResult created(Transfer t) {
+<span class="fc" id="L189">            return new Created(t);</span>
+        }
+
+        static TransferResult replay(IdempotencyStore.StoredResponse s) {
+<span class="fc" id="L193">            return new Replayed(s.responseStatus(), s.responseBody());</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>
