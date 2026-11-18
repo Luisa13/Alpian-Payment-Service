@@ -1,7 +1,7 @@
 package ch.example.template.notification;
 
 import ch.example.template.api.CorrelationIdFilter;
-import ch.example.template.application.PaymentService;
+import ch.example.template.application.flows.CreatePaymentFlow;
 import ch.example.template.domain.EventEnvelope;
 import ch.example.template.domain.Payment;
 import ch.example.template.domain.PaymentRepository;
@@ -75,7 +75,7 @@ class NotificationConsumer {
                 .register(meters);
     }
 
-    @KafkaListener(topics = PaymentService.TOPIC_REQUESTED, groupId = "${spring.kafka.consumer.group-id}")
+    @KafkaListener(topics = CreatePaymentFlow.TOPIC_REQUESTED, groupId = "${spring.kafka.consumer.group-id}")
     @Transactional
     public void onPaymentRequested(ConsumerRecord<String, String> record) {
 
@@ -85,7 +85,7 @@ class NotificationConsumer {
         }
 
         try {
-            EventEnvelope<PaymentService.PaymentPayload> envelope = deserialize(record.value());
+            EventEnvelope<CreatePaymentFlow.PaymentPayload> envelope = deserialize(record.value());
 
             if (!processedEvents.tryMarkProcessed(envelope.eventId(), record.topic())) {
                 log.debug("Duplicate event skipped: eventId={}", envelope.eventId());
@@ -102,9 +102,9 @@ class NotificationConsumer {
 
             var settledEnvelope = EventEnvelope.of(
                     EVENT_TYPE_SETTLED,
-                    PaymentService.EVENT_VERSION,
+                    CreatePaymentFlow.EVENT_VERSION,
                     envelope.correlationId(),
-                    PaymentService.PaymentPayload.from(payment));
+                    CreatePaymentFlow.PaymentPayload.from(payment));
             String payload = serialize(settledEnvelope);
             outbox.save(OutboxEntry.of(TOPIC_SETTLED, paymentId.toString(), payload));
 
@@ -119,15 +119,15 @@ class NotificationConsumer {
         }
     }
 
-    @KafkaListener(topics = PaymentService.TOPIC_REQUESTED + "-dlt", groupId = "${spring.kafka.consumer.group-id}-dlt")
+    @KafkaListener(topics = CreatePaymentFlow.TOPIC_REQUESTED + "-dlt", groupId = "${spring.kafka.consumer.group-id}-dlt")
     public void onDlt(ConsumerRecord<String, String> record) {
         dltCounter.increment();
         log.error("Message landed in DLT: topic={} key={} offset={}", record.topic(), record.key(), record.offset());
     }
 
-    private EventEnvelope<PaymentService.PaymentPayload> deserialize(String json) {
+    private EventEnvelope<CreatePaymentFlow.PaymentPayload> deserialize(String json) {
         try {
-            return objectMapper.readValue(json, new TypeReference<EventEnvelope<PaymentService.PaymentPayload>>() {});
+            return objectMapper.readValue(json, new TypeReference<EventEnvelope<CreatePaymentFlow.PaymentPayload>>() {});
         } catch (Exception e) {
             throw new IllegalArgumentException("Cannot deserialise payment event: " + e.getMessage(), e);
         }

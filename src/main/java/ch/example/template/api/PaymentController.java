@@ -3,8 +3,9 @@ package ch.example.template.api;
 import ch.example.template.api.generated.PaymentsApi;
 import ch.example.template.api.generated.model.CreatePaymentRequest;
 import ch.example.template.api.generated.model.PaymentResponse;
-import ch.example.template.application.PaymentService;
-import ch.example.template.application.PaymentService.PaymentResult;
+import ch.example.template.application.flows.CreatePaymentFlow;
+import ch.example.template.application.flows.CreatePaymentFlow.PaymentResult;
+import ch.example.template.application.flows.GetPaymentFlow;
 import ch.example.template.domain.Money;
 import ch.example.template.domain.Payment;
 import ch.example.template.domain.PaymentStatus;
@@ -20,11 +21,16 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class PaymentController implements PaymentsApi {
 
-    private final PaymentService service;
+    private final CreatePaymentFlow createPaymentFlow;
+    private final GetPaymentFlow getPaymentFlow;
     private final ObjectMapper objectMapper;
 
-    public PaymentController(PaymentService service, ObjectMapper objectMapper) {
-        this.service = service;
+    public PaymentController(
+            CreatePaymentFlow createPaymentFlow,
+            GetPaymentFlow getPaymentFlow,
+            ObjectMapper objectMapper) {
+        this.createPaymentFlow = createPaymentFlow;
+        this.getPaymentFlow = getPaymentFlow;
         this.objectMapper = objectMapper;
     }
 
@@ -34,16 +40,20 @@ public class PaymentController implements PaymentsApi {
 
         String requestHash = sha256(serialize(createPaymentRequest));
         Money amount = new Money(new BigDecimal(createPaymentRequest.getAmount()), createPaymentRequest.getCurrency());
-        UUID sourceId = createPaymentRequest.getSourceAccountId();
-        UUID targetId = createPaymentRequest.getTargetAccountId();
-        String description = createPaymentRequest.getDescription();
 
-        var cmd = new PaymentService.CreatePaymentCommand(amount, sourceId, targetId, description);
-        PaymentResult result = service.create(cmd, idempotencyKey.toString(), requestHash);
+        var args = new CreatePaymentFlow.Arguments(
+                amount,
+                createPaymentRequest.getSourceAccountId(),
+                createPaymentRequest.getTargetAccountId(),
+                createPaymentRequest.getDescription(),
+                idempotencyKey.toString(),
+                requestHash);
+
+        PaymentResult result = createPaymentFlow.initiate(args);
 
         return switch (result) {
             case PaymentResult.Created c ->
-                ResponseEntity.status(HttpStatus.CREATED).body(toResponse(c.payment()));
+                    ResponseEntity.status(HttpStatus.CREATED).body(toResponse(c.payment()));
             case PaymentResult.Replayed r -> {
                 PaymentResponse stored = deserializeResponse(r.responseBody());
                 yield ResponseEntity.status(r.responseStatus()).body(stored);
@@ -53,9 +63,13 @@ public class PaymentController implements PaymentsApi {
 
     @Override
     public ResponseEntity<PaymentResponse> getPayment(UUID id, String xRequestId) {
-        Payment payment = service.findById(id);
+        Payment payment = getPaymentFlow.initiate(new GetPaymentFlow.Arguments(id));
         return ResponseEntity.ok(toResponse(payment));
     }
+
+    // -------------------------------------------------------------------------
+    // Helpers
+    // -------------------------------------------------------------------------
 
     private PaymentResponse toResponse(Payment p) {
         var resp = new PaymentResponse();
