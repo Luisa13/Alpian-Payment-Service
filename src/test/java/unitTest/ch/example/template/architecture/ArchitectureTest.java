@@ -1,10 +1,12 @@
 package ch.example.template.architecture;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noMethods;
 
 import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Enforces the package-by-feature layered architecture:
@@ -68,4 +70,21 @@ class ArchitectureTest {
                     "ch.example.template..infrastructure..")
             .because("domain layer is the innermost ring; it must have zero dependencies on"
                     + " outer layers to remain independently testable and reusable");
+
+    @ArchTest
+    static final ArchRule task_classes_must_not_be_transactional = noClasses()
+            .that()
+            .resideInAPackage("ch.example.template..application.tasks..")
+            .should()
+            .beAnnotatedWith(Transactional.class)
+            .because("flows are the only transaction boundary; tasks must join the flow's transaction");
+
+    @ArchTest
+    static final ArchRule task_methods_must_not_be_transactional = noMethods()
+            .that()
+            .areDeclaredInClassesThat()
+            .resideInAPackage("ch.example.template..application.tasks..")
+            .should()
+            .beAnnotatedWith(Transactional.class)
+            .because("flows are the only transaction boundary; tasks must join the flow's transaction");
 }

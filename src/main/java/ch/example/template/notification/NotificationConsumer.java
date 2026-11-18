@@ -1,7 +1,8 @@
 package ch.example.template.notification;
 
 import ch.example.template.api.CorrelationIdFilter;
-import ch.example.template.application.PaymentService;
+import ch.example.template.application.events.PaymentEvents;
+import ch.example.template.application.events.PaymentPayload;
 import ch.example.template.domain.EventEnvelope;
 import ch.example.template.domain.Payment;
 import ch.example.template.domain.PaymentRepository;
@@ -40,9 +41,6 @@ class NotificationConsumer {
 
     private static final Logger log = LoggerFactory.getLogger(NotificationConsumer.class);
 
-    private static final String TOPIC_SETTLED = "payments.settled";
-    private static final String EVENT_TYPE_SETTLED = "payment.settled";
-
     private final PaymentRepository paymentRepository;
     private final OutboxRepository outbox;
     private final ProcessedEventStore processedEvents;
@@ -75,7 +73,7 @@ class NotificationConsumer {
                 .register(meters);
     }
 
-    @KafkaListener(topics = PaymentService.TOPIC_REQUESTED, groupId = "${spring.kafka.consumer.group-id}")
+    @KafkaListener(topics = PaymentEvents.TOPIC_REQUESTED, groupId = "${spring.kafka.consumer.group-id}")
     @Transactional
     public void onPaymentRequested(ConsumerRecord<String, String> record) {
 
@@ -85,7 +83,7 @@ class NotificationConsumer {
         }
 
         try {
-            EventEnvelope<PaymentService.PaymentPayload> envelope = deserialize(record.value());
+            EventEnvelope<PaymentPayload> envelope = deserialize(record.value());
 
             if (!processedEvents.tryMarkProcessed(envelope.eventId(), record.topic())) {
                 log.debug("Duplicate event skipped: eventId={}", envelope.eventId());
@@ -101,12 +99,12 @@ class NotificationConsumer {
             paymentRepository.save(payment);
 
             var settledEnvelope = EventEnvelope.of(
-                    EVENT_TYPE_SETTLED,
-                    PaymentService.EVENT_VERSION,
+                    PaymentEvents.EVENT_TYPE_SETTLED,
+                    PaymentEvents.EVENT_VERSION,
                     envelope.correlationId(),
-                    PaymentService.PaymentPayload.from(payment));
+                    PaymentPayload.from(payment));
             String payload = serialize(settledEnvelope);
-            outbox.save(OutboxEntry.of(TOPIC_SETTLED, paymentId.toString(), payload));
+            outbox.save(OutboxEntry.of(PaymentEvents.TOPIC_SETTLED, paymentId.toString(), payload));
 
             settledCounter.increment();
             log.info("Payment settled id={}", paymentId);
@@ -119,15 +117,15 @@ class NotificationConsumer {
         }
     }
 
-    @KafkaListener(topics = PaymentService.TOPIC_REQUESTED + "-dlt", groupId = "${spring.kafka.consumer.group-id}-dlt")
+    @KafkaListener(topics = PaymentEvents.TOPIC_REQUESTED + "-dlt", groupId = "${spring.kafka.consumer.group-id}-dlt")
     public void onDlt(ConsumerRecord<String, String> record) {
         dltCounter.increment();
         log.error("Message landed in DLT: topic={} key={} offset={}", record.topic(), record.key(), record.offset());
     }
 
-    private EventEnvelope<PaymentService.PaymentPayload> deserialize(String json) {
+    private EventEnvelope<PaymentPayload> deserialize(String json) {
         try {
-            return objectMapper.readValue(json, new TypeReference<EventEnvelope<PaymentService.PaymentPayload>>() {});
+            return objectMapper.readValue(json, new TypeReference<EventEnvelope<PaymentPayload>>() {});
         } catch (Exception e) {
             throw new IllegalArgumentException("Cannot deserialise payment event: " + e.getMessage(), e);
         }

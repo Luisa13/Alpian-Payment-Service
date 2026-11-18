@@ -3,7 +3,8 @@ package ch.example.template.integration;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
-import ch.example.template.application.PaymentService;
+import ch.example.template.application.events.PaymentEvents;
+import ch.example.template.application.events.PaymentPayload;
 import ch.example.template.domain.EventEnvelope;
 import ch.example.template.domain.Money;
 import ch.example.template.domain.Payment;
@@ -47,12 +48,12 @@ class ConsumerIdempotencyIT extends IntegrationTestBase {
         UUID paymentId = payment.getId();
 
         UUID sharedEventId = UUID.randomUUID();
-        var payload = new PaymentService.PaymentPayload(
+        var payload = new PaymentPayload(
                 paymentId, "10.00", "CHF", payment.getSourceAccountId(), payment.getTargetAccountId(), "dedup test");
         var envelope = new EventEnvelope<>(
                 sharedEventId,
-                PaymentService.EVENT_TYPE_REQUESTED,
-                PaymentService.EVENT_VERSION,
+                PaymentEvents.EVENT_TYPE_REQUESTED,
+                PaymentEvents.EVENT_VERSION,
                 java.time.Instant.now(),
                 UUID.randomUUID(),
                 payload);

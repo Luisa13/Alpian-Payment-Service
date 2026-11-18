@@ -1,14 +1,15 @@
 package ch.example.template.api;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import ch.example.template.application.PaymentService;
+import ch.example.template.application.flows.CreatePaymentFlow;
+import ch.example.template.application.flows.GetPaymentFlow;
+import ch.example.template.application.flows.PaymentResult;
 import ch.example.template.domain.EntityNotFoundException;
 import ch.example.template.domain.IdempotencyConflictException;
 import ch.example.template.domain.Money;
@@ -33,7 +34,10 @@ class PaymentControllerTest {
     ObjectMapper objectMapper;
 
     @MockitoBean
-    PaymentService paymentService;
+    CreatePaymentFlow createPaymentFlow;
+
+    @MockitoBean
+    GetPaymentFlow getPaymentFlow;
 
     private static final String VALID_BODY = """
             {
@@ -48,8 +52,7 @@ class PaymentControllerTest {
     @Test
     void post_valid_request_returns_201() throws Exception {
         var payment = stubPayment();
-        when(paymentService.create(any(), anyString(), anyString()))
-                .thenReturn(PaymentService.PaymentResult.created(payment));
+        when(createPaymentFlow.initiate(any())).thenReturn(PaymentResult.created(payment));
 
         mvc.perform(post("/v1/payments")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -80,8 +83,8 @@ class PaymentControllerTest {
 
     @Test
     void post_idempotent_replay_returns_201_same_body() throws Exception {
-        var stored = new PaymentService.PaymentResult.Replayed(201, "{\"id\":\"" + UUID.randomUUID() + "\"}");
-        when(paymentService.create(any(), anyString(), anyString())).thenReturn(stored);
+        var stored = new PaymentResult.Replayed(201, "{\"id\":\"" + UUID.randomUUID() + "\"}");
+        when(createPaymentFlow.initiate(any())).thenReturn(stored);
 
         mvc.perform(post("/v1/payments")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -92,8 +95,7 @@ class PaymentControllerTest {
 
     @Test
     void post_idempotency_conflict_returns_409() throws Exception {
-        when(paymentService.create(any(), anyString(), anyString()))
-                .thenThrow(new IdempotencyConflictException("key-1"));
+        when(createPaymentFlow.initiate(any())).thenThrow(new IdempotencyConflictException("key-1"));
 
         mvc.perform(post("/v1/payments")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -105,7 +107,7 @@ class PaymentControllerTest {
     @Test
     void get_existing_payment_returns_200() throws Exception {
         var payment = stubPayment();
-        when(paymentService.findById(payment.getId())).thenReturn(payment);
+        when(getPaymentFlow.initiate(any())).thenReturn(payment);
 
         mvc.perform(get("/v1/payments/" + payment.getId()))
                 .andExpect(status().isOk())
@@ -115,7 +117,7 @@ class PaymentControllerTest {
     @Test
     void get_unknown_payment_returns_404() throws Exception {
         UUID id = UUID.randomUUID();
-        when(paymentService.findById(id)).thenThrow(new EntityNotFoundException("Payment", id));
+        when(getPaymentFlow.initiate(any())).thenThrow(new EntityNotFoundException("Payment", id));
 
         mvc.perform(get("/v1/payments/" + id)).andExpect(status().isNotFound());
     }
