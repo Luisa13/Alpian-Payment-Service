@@ -11,8 +11,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import ch.example.template.application.flows.CreatePaymentFlow;
-import ch.example.template.application.flows.CreatePaymentFlow.PaymentResult;
 import ch.example.template.application.flows.GetPaymentFlow;
+import ch.example.template.application.flows.PaymentResponseDto;
+import ch.example.template.application.flows.PaymentResult;
 import ch.example.template.application.tasks.CheckIdempotencyTask;
 import ch.example.template.application.tasks.FindPaymentByIdTask;
 import ch.example.template.application.tasks.SavePaymentTask;
@@ -55,14 +56,14 @@ class PaymentFlowsTest {
     @BeforeEach
     void setUp() {
         paymentRepo = mock(PaymentRepository.class);
-        outboxRepo  = mock(OutboxRepository.class);
+        outboxRepo = mock(OutboxRepository.class);
         idempotency = mock(IdempotencyStore.class);
 
-        checkIdempotencyTask       = new CheckIdempotencyTask(idempotency);
-        savePaymentTask            = new SavePaymentTask(paymentRepo);
-        writeOutboxTask            = new WriteOutboxTask(outboxRepo);
+        checkIdempotencyTask = new CheckIdempotencyTask(idempotency);
+        savePaymentTask = new SavePaymentTask(paymentRepo);
+        writeOutboxTask = new WriteOutboxTask(outboxRepo);
         storeIdempotencyResponseTask = new StoreIdempotencyResponseTask(idempotency);
-        findPaymentByIdTask        = new FindPaymentByIdTask(paymentRepo);
+        findPaymentByIdTask = new FindPaymentByIdTask(paymentRepo);
 
         ObjectMapper mapper = new ObjectMapper().registerModule(new JavaTimeModule());
 
@@ -88,8 +89,11 @@ class PaymentFlowsTest {
 
         var args = new CreatePaymentFlow.Arguments(
                 new Money(new BigDecimal("100.00"), "CHF"),
-                UUID.randomUUID(), UUID.randomUUID(), "test",
-                "key-1", "hash-1");
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                "test",
+                "key-1",
+                "hash-1");
 
         PaymentResult result = createPaymentFlow.initiate(args);
 
@@ -106,8 +110,11 @@ class PaymentFlowsTest {
 
         var args = new CreatePaymentFlow.Arguments(
                 new Money(new BigDecimal("100.00"), "CHF"),
-                UUID.randomUUID(), UUID.randomUUID(), "test",
-                "key-1", "hash-1");
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                "test",
+                "key-1",
+                "hash-1");
 
         PaymentResult result = createPaymentFlow.initiate(args);
 
@@ -124,8 +131,11 @@ class PaymentFlowsTest {
         try {
             var args = new CreatePaymentFlow.Arguments(
                     new Money(new BigDecimal("100.00"), "CHF"),
-                    UUID.randomUUID(), UUID.randomUUID(), "test",
-                    "key-2", "hash-2");
+                    UUID.randomUUID(),
+                    UUID.randomUUID(),
+                    "test",
+                    "key-2",
+                    "hash-2");
             assertThat(createPaymentFlow.initiate(args)).isInstanceOf(PaymentResult.Created.class);
         } finally {
             MDC.clear();
@@ -139,8 +149,8 @@ class PaymentFlowsTest {
     @Test
     void findById_returns_payment_when_found() {
         var id = UUID.randomUUID();
-        var payment = Payment.create(new Money(new BigDecimal("50.00"), "EUR"),
-                UUID.randomUUID(), UUID.randomUUID(), "desc");
+        var payment =
+                Payment.create(new Money(new BigDecimal("50.00"), "EUR"), UUID.randomUUID(), UUID.randomUUID(), "desc");
         when(paymentRepo.findById(id)).thenReturn(Optional.of(payment));
 
         assertThat(getPaymentFlow.initiate(new GetPaymentFlow.Arguments(id))).isSameAs(payment);
@@ -153,5 +163,21 @@ class PaymentFlowsTest {
 
         assertThatThrownBy(() -> getPaymentFlow.initiate(new GetPaymentFlow.Arguments(id)))
                 .isInstanceOf(EntityNotFoundException.class);
+    }
+
+    // -------------------------------------------------------------------------
+    // PaymentResponseDto
+    // -------------------------------------------------------------------------
+
+    @Test
+    void paymentResponseDto_maps_failureReason_when_failed() {
+        var payment = Payment.create(
+                new Money(new BigDecimal("25.00"), "CHF"), UUID.randomUUID(), UUID.randomUUID(), "failed test");
+        assertThat(PaymentResponseDto.from(payment).failureReason()).isNull();
+
+        payment.fail("insufficient funds");
+        var dto = PaymentResponseDto.from(payment);
+        assertThat(dto.status()).isEqualTo("FAILED");
+        assertThat(dto.failureReason()).isEqualTo("insufficient funds");
     }
 }

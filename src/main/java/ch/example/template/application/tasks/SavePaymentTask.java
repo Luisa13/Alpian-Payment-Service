@@ -18,19 +18,12 @@ public class SavePaymentTask implements Task<SavePaymentTask.Arguments, Payment>
         this.payments = payments;
     }
 
-    public record Arguments(
-            Money amount,
-            UUID sourceAccountId,
-            UUID targetAccountId,
-            String description) {}
+    public record Arguments(Money amount, UUID sourceAccountId, UUID targetAccountId, String description) {}
 
     @Override
     public Payment execute(Arguments args) {
-        Payment payment = Payment.create(
-                args.amount(),
-                args.sourceAccountId(),
-                args.targetAccountId(),
-                args.description());
+        Payment payment =
+                Payment.create(args.amount(), args.sourceAccountId(), args.targetAccountId(), args.description());
         return payments.save(payment);
     }
 }

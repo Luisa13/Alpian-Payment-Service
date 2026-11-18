@@ -4,8 +4,8 @@ import ch.example.template.api.generated.PaymentsApi;
 import ch.example.template.api.generated.model.CreatePaymentRequest;
 import ch.example.template.api.generated.model.PaymentResponse;
 import ch.example.template.application.flows.CreatePaymentFlow;
-import ch.example.template.application.flows.CreatePaymentFlow.PaymentResult;
 import ch.example.template.application.flows.GetPaymentFlow;
+import ch.example.template.application.flows.PaymentResult;
 import ch.example.template.domain.Money;
 import ch.example.template.domain.Payment;
 import ch.example.template.domain.PaymentStatus;
@@ -26,9 +26,7 @@ public class PaymentController implements PaymentsApi {
     private final ObjectMapper objectMapper;
 
     public PaymentController(
-            CreatePaymentFlow createPaymentFlow,
-            GetPaymentFlow getPaymentFlow,
-            ObjectMapper objectMapper) {
+            CreatePaymentFlow createPaymentFlow, GetPaymentFlow getPaymentFlow, ObjectMapper objectMapper) {
         this.createPaymentFlow = createPaymentFlow;
         this.getPaymentFlow = getPaymentFlow;
         this.objectMapper = objectMapper;
@@ -53,7 +51,7 @@ public class PaymentController implements PaymentsApi {
 
         return switch (result) {
             case PaymentResult.Created c ->
-                    ResponseEntity.status(HttpStatus.CREATED).body(toResponse(c.payment()));
+                ResponseEntity.status(HttpStatus.CREATED).body(toResponse(c.payment()));
             case PaymentResult.Replayed r -> {
                 PaymentResponse stored = deserializeResponse(r.responseBody());
                 yield ResponseEntity.status(r.responseStatus()).body(stored);

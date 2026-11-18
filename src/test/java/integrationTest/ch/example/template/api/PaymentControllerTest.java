@@ -1,7 +1,6 @@
 package ch.example.template.api;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -9,8 +8,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import ch.example.template.application.flows.CreatePaymentFlow;
-import ch.example.template.application.flows.CreatePaymentFlow.PaymentResult;
 import ch.example.template.application.flows.GetPaymentFlow;
+import ch.example.template.application.flows.PaymentResult;
 import ch.example.template.domain.EntityNotFoundException;
 import ch.example.template.domain.IdempotencyConflictException;
 import ch.example.template.domain.Money;
@@ -53,8 +52,7 @@ class PaymentControllerTest {
     @Test
     void post_valid_request_returns_201() throws Exception {
         var payment = stubPayment();
-        when(createPaymentFlow.initiate(any()))
-                .thenReturn(PaymentResult.created(payment));
+        when(createPaymentFlow.initiate(any())).thenReturn(PaymentResult.created(payment));
 
         mvc.perform(post("/v1/payments")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -97,8 +95,7 @@ class PaymentControllerTest {
 
     @Test
     void post_idempotency_conflict_returns_409() throws Exception {
-        when(createPaymentFlow.initiate(any()))
-                .thenThrow(new IdempotencyConflictException("key-1"));
+        when(createPaymentFlow.initiate(any())).thenThrow(new IdempotencyConflictException("key-1"));
 
         mvc.perform(post("/v1/payments")
                         .contentType(MediaType.APPLICATION_JSON)

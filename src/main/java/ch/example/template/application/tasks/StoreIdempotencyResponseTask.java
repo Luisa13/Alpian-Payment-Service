@@ -16,19 +16,12 @@ public class StoreIdempotencyResponseTask implements Task<StoreIdempotencyRespon
         this.idempotencyStore = idempotencyStore;
     }
 
-    public record Arguments(
-            String idempotencyKey,
-            String requestHash,
-            int responseStatus,
-            String responseBody) {}
+    public record Arguments(String idempotencyKey, String requestHash, int responseStatus, String responseBody) {}
 
     @Override
     public Void execute(Arguments args) {
         idempotencyStore.storeResponse(
-                args.idempotencyKey(),
-                args.requestHash(),
-                args.responseStatus(),
-                args.responseBody());
+                args.idempotencyKey(), args.requestHash(), args.responseStatus(), args.responseBody());
         return null;
     }
 }

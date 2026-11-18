@@ -20,7 +20,6 @@ public class FindPaymentByIdTask implements Task<UUID, Payment> {
 
     @Override
     public Payment execute(UUID id) {
-        return payments.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Payment", id));
+        return payments.findById(id).orElseThrow(() -> new EntityNotFoundException("Payment", id));
     }
 }
