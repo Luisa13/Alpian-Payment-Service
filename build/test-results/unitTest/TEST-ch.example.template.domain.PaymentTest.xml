@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="ch.example.template.domain.PaymentTest" tests="8" skipped="0" failures="0" errors="0" timestamp="2026-11-17T22:34:36Z" hostname="Luisas-MBP.fritz.box" time="0.069">
+  <properties/>
+  <testcase name="version_is_null_on_new_entity()" classname="ch.example.template.domain.PaymentTest" time="0.049"/>
+  <testcase name="fail_transitions_to_failed()" classname="ch.example.template.domain.PaymentTest" time="0.009"/>
+  <testcase name="get_amount_returns_money()" classname="ch.example.template.domain.PaymentTest" time="0.001"/>
+  <testcase name="cannot_settle_already_failed_payment()" classname="ch.example.template.domain.PaymentTest" time="0.002"/>
+  <testcase name="cannot_fail_already_settled_payment()" classname="ch.example.template.domain.PaymentTest" time="0.001"/>
+  <testcase name="cannot_settle_already_settled_payment()" classname="ch.example.template.domain.PaymentTest" time="0.0"/>
+  <testcase name="created_payment_is_in_requested_status()" classname="ch.example.template.domain.PaymentTest" time="0.001"/>
+  <testcase name="settle_transitions_to_settled()" classname="ch.example.template.domain.PaymentTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

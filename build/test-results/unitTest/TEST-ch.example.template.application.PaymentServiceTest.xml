@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="ch.example.template.application.PaymentServiceTest" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-11-17T22:34:35.061Z" hostname="Luisas-MBP.fritz.box" time="1.189">
+  <properties/>
+  <testcase name="findById_throws_when_not_found()" classname="ch.example.template.application.PaymentServiceTest" time="1.124"/>
+  <testcase name="create_replays_existing_idempotency_response()" classname="ch.example.template.application.PaymentServiceTest" time="0.006"/>
+  <testcase name="findById_returns_payment_when_found()" classname="ch.example.template.application.PaymentServiceTest" time="0.005"/>
+  <testcase name="create_uses_mdc_correlation_id_when_present()" classname="ch.example.template.application.PaymentServiceTest" time="0.036"/>
+  <testcase name="create_saves_payment_and_outbox_event()" classname="ch.example.template.application.PaymentServiceTest" time="0.005"/>
+  <system-out><![CDATA[23:34:36.245 [Test worker] INFO ch.example.template.application.PaymentService -- Payment created id=a83590a5-c1aa-400f-b0bf-ddc7f9fdfc09 amount=100.00 CHF
+23:34:36.250 [Test worker] INFO ch.example.template.application.PaymentService -- Payment created id=7705130a-3594-44fa-8be4-04f49d405f18 amount=100.00 CHF
+]]></system-out>
+  <system-err><![CDATA[Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3
+WARNING: A Java agent has been loaded dynamically (/Users/luisa/.gradle/caches/modules-2/files-2.1/net.bytebuddy/byte-buddy-agent/1.17.8/f09415827a71be7ed621c7bd02550678f28bc81c/byte-buddy-agent-1.17.8.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+]]></system-err>
+</testsuite>

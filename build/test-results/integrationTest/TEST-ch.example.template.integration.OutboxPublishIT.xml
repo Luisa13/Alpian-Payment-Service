@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="ch.example.template.integration.OutboxPublishIT" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-11-17T22:34:53.279Z" hostname="Luisas-MBP.fritz.box" time="0.76">
+  <properties/>
+  <testcase name="post_payment_publishes_payments_requested_event()" classname="ch.example.template.integration.OutboxPublishIT" time="0.75"/>
+  <system-out><![CDATA[{"@timestamp":"2026-11-17T23:34:53.481854+01:00","@version":"1","message":"Payment created id=7998d8fb-0618-4f6f-ab46-2114e95fb551 amount=25.00 CHF","logger_name":"ch.example.template.application.PaymentService","thread_name":"tomcat-handler-0","level":"INFO","level_value":20000,"appName":"payment-service-template","correlationId":"27f42fc1-96be-4390-8cd9-493796ac5edf","app":"payment-service-template"}
+{"@timestamp":"2026-11-17T23:34:53.528321+01:00","@version":"1","message":"Payment settled id=7998d8fb-0618-4f6f-ab46-2114e95fb551","logger_name":"ch.example.template.notification.NotificationConsumer","thread_name":"org.springframework.kafka.KafkaListenerEndpointContainer#1-0-C-1","level":"INFO","level_value":20000,"appName":"payment-service-template","app":"payment-service-template"}
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PaymentController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">payment-service-template</a> &gt; <a href="index.source.html" class="el_package">ch.example.template.api</a> &gt; <span class="el_source">PaymentController.java</span></div><h1>PaymentController.java</h1><pre class="source lang-java linenums">package ch.example.template.api;
+
+import ch.example.template.api.generated.PaymentsApi;
+import ch.example.template.api.generated.model.CreatePaymentRequest;
+import ch.example.template.api.generated.model.PaymentResponse;
+import ch.example.template.application.PaymentService;
+import ch.example.template.application.PaymentService.PaymentResult;
+import ch.example.template.domain.Money;
+import ch.example.template.domain.Payment;
+import ch.example.template.domain.PaymentStatus;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.math.BigDecimal;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.util.UUID;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+public class PaymentController implements PaymentsApi {
+
+    private final PaymentService service;
+    private final ObjectMapper objectMapper;
+
+<span class="fc" id="L26">    public PaymentController(PaymentService service, ObjectMapper objectMapper) {</span>
+<span class="fc" id="L27">        this.service = service;</span>
+<span class="fc" id="L28">        this.objectMapper = objectMapper;</span>
+<span class="fc" id="L29">    }</span>
+
+    @Override
+    public ResponseEntity&lt;PaymentResponse&gt; createPayment(
+            UUID idempotencyKey, CreatePaymentRequest createPaymentRequest, String xRequestId) {
+
+<span class="fc" id="L35">        String requestHash = sha256(serialize(createPaymentRequest));</span>
+<span class="fc" id="L36">        Money amount = new Money(new BigDecimal(createPaymentRequest.getAmount()), createPaymentRequest.getCurrency());</span>
+<span class="fc" id="L37">        UUID sourceId = createPaymentRequest.getSourceAccountId();</span>
+<span class="fc" id="L38">        UUID targetId = createPaymentRequest.getTargetAccountId();</span>
+<span class="fc" id="L39">        String description = createPaymentRequest.getDescription();</span>
+
+<span class="fc" id="L41">        var cmd = new PaymentService.CreatePaymentCommand(amount, sourceId, targetId, description);</span>
+<span class="fc" id="L42">        PaymentResult result = service.create(cmd, idempotencyKey.toString(), requestHash);</span>
+
+<span class="fc bfc" id="L44" title="All 2 branches covered.">        return switch (result) {</span>
+<span class="fc" id="L45">            case PaymentResult.Created c -&gt;</span>
+<span class="fc" id="L46">                ResponseEntity.status(HttpStatus.CREATED).body(toResponse(c.payment()));</span>
+<span class="fc" id="L47">            case PaymentResult.Replayed r -&gt; {</span>
+<span class="fc" id="L48">                PaymentResponse stored = deserializeResponse(r.responseBody());</span>
+<span class="fc" id="L49">                yield ResponseEntity.status(r.responseStatus()).body(stored);</span>
+            }
+        };
+    }
+
+    @Override
+    public ResponseEntity&lt;PaymentResponse&gt; getPayment(UUID id, String xRequestId) {
+<span class="fc" id="L56">        Payment payment = service.findById(id);</span>
+<span class="fc" id="L57">        return ResponseEntity.ok(toResponse(payment));</span>
+    }
+
+    private PaymentResponse toResponse(Payment p) {
+<span class="fc" id="L61">        var resp = new PaymentResponse();</span>
+<span class="fc" id="L62">        resp.setId(p.getId());</span>
+<span class="fc" id="L63">        resp.setAmount(p.getAmount().amount().toPlainString());</span>
+<span class="fc" id="L64">        resp.setCurrency(p.getAmount().currency());</span>
+<span class="fc" id="L65">        resp.setStatus(PaymentResponse.StatusEnum.valueOf(p.getPaymentStatus().code()));</span>
+<span class="pc bpc" id="L66" title="1 of 2 branches missed.">        if (p.getPaymentStatus() instanceof PaymentStatus.Failed f) {</span>
+<span class="nc" id="L67">            resp.setFailureReason(f.reason());</span>
+        }
+<span class="fc" id="L69">        resp.setSourceAccountId(p.getSourceAccountId());</span>
+<span class="fc" id="L70">        resp.setTargetAccountId(p.getTargetAccountId());</span>
+<span class="fc" id="L71">        resp.setDescription(p.getDescription());</span>
+<span class="pc bpc" id="L72" title="1 of 2 branches missed.">        resp.setCreatedAt(p.getCreatedAt() != null ? OffsetDateTime.ofInstant(p.getCreatedAt(), ZoneOffset.UTC) : null);</span>
+<span class="pc bpc" id="L73" title="1 of 2 branches missed.">        resp.setUpdatedAt(p.getUpdatedAt() != null ? OffsetDateTime.ofInstant(p.getUpdatedAt(), ZoneOffset.UTC) : null);</span>
+<span class="fc" id="L74">        return resp;</span>
+    }
+
+    private static String sha256(String input) {
+        try {
+<span class="fc" id="L79">            var digest = java.security.MessageDigest.getInstance(&quot;SHA-256&quot;);</span>
+<span class="fc" id="L80">            byte[] bytes = digest.digest(input.getBytes(java.nio.charset.StandardCharsets.UTF_8));</span>
+<span class="fc" id="L81">            var sb = new StringBuilder(bytes.length * 2);</span>
+<span class="fc bfc" id="L82" title="All 2 branches covered.">            for (byte b : bytes) sb.append(String.format(&quot;%02x&quot;, b));</span>
+<span class="fc" id="L83">            return sb.toString();</span>
+<span class="nc" id="L84">        } catch (java.security.NoSuchAlgorithmException e) {</span>
+<span class="nc" id="L85">            throw new IllegalStateException(&quot;SHA-256 not available&quot;, e);</span>
+        }
+    }
+
+    private String serialize(Object obj) {
+        try {
+<span class="fc" id="L91">            return objectMapper.writeValueAsString(obj);</span>
+<span class="nc" id="L92">        } catch (Exception e) {</span>
+<span class="nc" id="L93">            throw new IllegalStateException(&quot;Cannot serialise request for idempotency hash&quot;, e);</span>
+        }
+    }
+
+    private PaymentResponse deserializeResponse(String json) {
+        try {
+<span class="fc" id="L99">            return objectMapper.readValue(json, PaymentResponse.class);</span>
+<span class="nc" id="L100">        } catch (Exception e) {</span>
+<span class="nc" id="L101">            throw new IllegalStateException(&quot;Cannot deserialise stored idempotency response&quot;, e);</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>
