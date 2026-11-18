@@ -4,9 +4,6 @@ info:
   title: Payment Service API
   version: "1.0.0"
   description: |
-    Template API — the `transfers` paths are a sample feature.
-    Replace them with your domain when using this template.
-
     **Idempotency**: `POST` endpoints require an `Idempotency-Key` header (UUID).
     Replaying the same key + same body returns the original response.
     Same key + different body returns `409 Conflict`.
@@ -18,18 +15,18 @@ servers:
     description: Local development
 
 tags:
-  - name: Transfers
-    description: "Sample feature — replace with your domain"
+  - name: Payments
+    description: Payment operations
 
 # ─── Paths ────────────────────────────────────────────────────────────────────
 
 paths:
 
-  /v1/transfers:
+  /v1/payments:
     post:
-      tags: [Transfers]
-      summary: Initiate a transfer
-      operationId: createTransfer
+      tags: [Payments]
+      summary: Initiate a payment
+      operationId: createPayment
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
         - $ref: "#/components/parameters/CorrelationId"
@@ -38,7 +35,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CreateTransferRequest"
+              $ref: "#/components/schemas/CreatePaymentRequest"
             example:
               amount: "100.00"
               currency: "CHF"
@@ -47,7 +44,7 @@ paths:
               description: "Rent payment"
       responses:
         "201":
-          description: Transfer accepted (idempotent — replaying returns the same 201)
+          description: Payment accepted (idempotent — replaying returns the same 201)
           headers:
             X-Request-Id:
               description: Echo of the correlation ID
@@ -56,7 +53,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/TransferResponse"
+                $ref: "#/components/schemas/PaymentResponse"
         "400":
           description: Validation error
           content:
@@ -82,11 +79,11 @@ paths:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
 
-  /v1/transfers/{id}:
+  /v1/payments/{id}:
     get:
-      tags: [Transfers]
-      summary: Get a transfer by ID
-      operationId: getTransfer
+      tags: [Payments]
+      summary: Get a payment by ID
+      operationId: getPayment
       parameters:
         - name: id
           in: path
@@ -97,13 +94,13 @@ paths:
         - $ref: "#/components/parameters/CorrelationId"
       responses:
         "200":
-          description: Transfer found
+          description: Payment found
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/TransferResponse"
+                $ref: "#/components/schemas/PaymentResponse"
         "404":
-          description: Transfer not found
+          description: Payment not found
           content:
             application/problem+json:
               schema:
@@ -141,7 +138,7 @@ components:
 
   schemas:
 
-    CreateTransferRequest:
+    CreatePaymentRequest:
       type: object
       required: [amount, currency, sourceAccountId, targetAccountId]
       properties:
@@ -172,7 +169,7 @@ components:
           maxLength: 255
           description: Human-readable purpose
 
-    TransferResponse:
+    PaymentResponse:
       type: object
       required: [id, amount, currency, status, sourceAccountId, targetAccountId, createdAt]
       properties:

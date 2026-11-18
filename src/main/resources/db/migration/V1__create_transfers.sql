@@ -1,9 +1,9 @@
--- V1: Transfer aggregate table
+-- V1: Payment aggregate table
 -- Optimistic locking via version column.
 -- Money value object is stored as two flat columns.
 -- Status stored as discriminator string + optional failure reason.
 
-CREATE TABLE transfers (
+CREATE TABLE payments (
     id               UUID        NOT NULL,
     amount_value     NUMERIC(19, 8) NOT NULL,
     amount_currency  CHAR(3)     NOT NULL,
@@ -16,10 +16,10 @@ CREATE TABLE transfers (
     created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
 
-    CONSTRAINT pk_transfers            PRIMARY KEY (id),
-    CONSTRAINT chk_transfer_status    CHECK (status_code IN ('REQUESTED', 'SETTLED', 'FAILED')),
-    CONSTRAINT chk_transfer_amount    CHECK (amount_value >= 0)
+    CONSTRAINT pk_payments            PRIMARY KEY (id),
+    CONSTRAINT chk_payment_status    CHECK (status_code IN ('REQUESTED', 'SETTLED', 'FAILED')),
+    CONSTRAINT chk_payment_amount    CHECK (amount_value >= 0)
 );
 
-CREATE INDEX idx_transfers_status   ON transfers (status_code);
-CREATE INDEX idx_transfers_created  ON transfers (created_at DESC);
+CREATE INDEX idx_payments_status   ON payments (status_code);
+CREATE INDEX idx_payments_created  ON payments (created_at DESC);
