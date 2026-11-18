@@ -34,6 +34,16 @@ class MoneyTest {
     }
 
     @Test
+    void rejects_null_currency() {
+        assertThatThrownBy(() -> new Money(new BigDecimal("1.00"), null)).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void rejects_blank_currency() {
+        assertThatThrownBy(() -> new Money(new BigDecimal("1.00"), "  ")).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
     void rejects_unsupported_currency() {
         assertThatThrownBy(() -> new Money(new BigDecimal("1.00"), "XYZ"))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -77,8 +87,24 @@ class MoneyTest {
     }
 
     @Test
+    void is_positive_false_for_zero() {
+        assertThat(Money.of("0.00", "CHF").isPositive()).isFalse();
+    }
+
+    @Test
     void is_zero_true_for_zero() {
         assertThat(Money.of("0.00", "CHF").isZero()).isTrue();
+    }
+
+    @Test
+    void is_zero_false_for_non_zero() {
+        assertThat(Money.of("0.01", "CHF").isZero()).isFalse();
+    }
+
+    @Test
+    void subtract_different_currency_throws() {
+        assertThatThrownBy(() -> Money.of("10.00", "EUR").subtract(Money.of("5.00", "CHF")))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
