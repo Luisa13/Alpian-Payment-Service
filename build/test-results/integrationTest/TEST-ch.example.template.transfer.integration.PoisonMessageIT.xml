@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="ch.example.template.transfer.integration.PoisonMessageIT" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-11-17T15:04:59.607Z" hostname="Luisas-MBP.fritz.box" time="1.154">
-  <properties/>
-  <testcase name="poison_message_lands_in_dlt_and_does_not_block_valid_messages()" classname="ch.example.template.transfer.integration.PoisonMessageIT" time="1.146"/>
-  <system-out><![CDATA[{"@timestamp":"2026-11-17T16:05:00.252584+01:00","@version":"1","message":"Message landed in DLT: topic=transfers.requested-dlt key=a3196326-bac1-42a7-8511-573783448c07 offset=0","logger_name":"ch.example.template.transfer.infrastructure.TransferEventConsumer","thread_name":"org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1","level":"ERROR","level_value":40000,"appName":"payment-service-template","app":"payment-service-template"}
-]]></system-out>
-  <system-err><![CDATA[]]></system-err>
-</testsuite>

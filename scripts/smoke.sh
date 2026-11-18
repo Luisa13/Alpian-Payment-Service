@@ -4,7 +4,7 @@ set -euo pipefail
 BASE_URL="${BASE_URL:-http://localhost:8080}"
 IDEMPOTENCY_KEY="$(uuidgen | tr '[:upper:]' '[:lower:]')"
 
-echo "==> POST /v1/transfers"
+echo "==> POST /v1/payments"
 BODY='{
   "amount": "42.00",
   "currency": "CHF",
@@ -14,7 +14,7 @@ BODY='{
 }'
 
 RESPONSE=$(curl -s -w "\n%{http_code}" \
-  -X POST "$BASE_URL/v1/transfers" \
+  -X POST "$BASE_URL/v1/payments" \
   -H "Content-Type: application/json" \
   -H "Idempotency-Key: $IDEMPOTENCY_KEY" \
   -d "$BODY")
@@ -33,7 +33,7 @@ echo "$BODY_RESP" | python3 -m json.tool 2>/dev/null || echo "$BODY_RESP"
 echo ""
 echo "==> Idempotent replay (same key + body)"
 REPLAY=$(curl -s -w "\n%{http_code}" \
-  -X POST "$BASE_URL/v1/transfers" \
+  -X POST "$BASE_URL/v1/payments" \
   -H "Content-Type: application/json" \
   -H "Idempotency-Key: $IDEMPOTENCY_KEY" \
   -d "$BODY")
@@ -63,7 +63,7 @@ CONFLICT_BODY='{
   "description": "smoke test conflict"
 }'
 CONFLICT=$(curl -s -w "\n%{http_code}" \
-  -X POST "$BASE_URL/v1/transfers" \
+  -X POST "$BASE_URL/v1/payments" \
   -H "Content-Type: application/json" \
   -H "Idempotency-Key: $IDEMPOTENCY_KEY" \
   -d "$CONFLICT_BODY")
@@ -76,13 +76,13 @@ fi
 echo "OK: 409 conflict on body mismatch"
 
 echo ""
-echo "==> Custom metrics (transfers_created_total)"
+echo "==> Custom metrics (payments_created_total)"
 METRICS=$(curl -s "$BASE_URL/actuator/prometheus")
-if echo "$METRICS" | grep -q "transfers_created_total"; then
-  echo "OK: metrics endpoint contains transfers_created_total"
-  echo "$METRICS" | grep "^transfers_" | head -10
+if echo "$METRICS" | grep -q "payments_created_total"; then
+  echo "OK: metrics endpoint contains payments_created_total"
+  echo "$METRICS" | grep "^payments_" | head -10
 else
-  echo "WARN: transfers_created_total not found in metrics (service may not have processed yet)"
+  echo "WARN: payments_created_total not found in metrics (service may not have processed yet)"
 fi
 
 echo ""

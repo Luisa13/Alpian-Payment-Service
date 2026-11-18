@@ -194,9 +194,8 @@ tasks.jacocoTestCoverageVerification {
         rule {
             element = "CLASS"
             includes = listOf(
-                "ch.example.template.*.domain.*",
-                "ch.example.template.*.application.*",
-                "ch.example.template.shared.domain.*",
+                "ch.example.template.domain.*",
+                "ch.example.template.application.*",
             )
             limit {
                 counter = "LINE"
@@ -216,6 +215,12 @@ tasks.check {
     dependsOn(unitTest, integrationTest, e2eTest, tasks.jacocoTestCoverageVerification)
 }
 
+// ─── bootRun ──────────────────────────────────────────────────────────────────
+
+tasks.bootRun {
+    jvmArgs("-Dspring.profiles.active=local")
+}
+
 // ─── OpenAPI Generator ────────────────────────────────────────────────────────
 
 val generatedOpenApiDir = layout.buildDirectory.dir("generated/openapi")
@@ -224,8 +229,8 @@ openApiGenerate {
     generatorName.set("spring")
     inputSpec.set("${projectDir}/src/main/resources/openapi/api.yaml")
     outputDir.set(generatedOpenApiDir.get().asFile.absolutePath)
-    apiPackage.set("ch.example.template.transfer.api.generated")
-    modelPackage.set("ch.example.template.transfer.api.generated.model")
+    apiPackage.set("ch.example.template.api.generated")
+    modelPackage.set("ch.example.template.api.generated.model")
     configOptions.set(
         mapOf(
             "interfaceOnly" to "true",
