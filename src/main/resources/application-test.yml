@@ -5,12 +5,23 @@
 logging:
   level:
     root: WARN
-    ch.example.template: DEBUG
+    ch.alpian.payment: DEBUG
     org.springframework.kafka: WARN
     org.testcontainers: WARN
     com.github.dockerjava: WARN
 
-# Keep the outbox relay interval very short so integration tests don't wait long
+# Short outbox interval so integration tests don't wait long; a deterministic rail (always settles).
+spring:
+  datasource:
+    hikari:
+      maximum-pool-size: 30
+      connection-timeout: 30000
+
 app:
   outbox:
     relay-interval-ms: 100
+  rail:
+    simulated:
+      delay: 0ms
+      rejection-rate: 0
+      timeout-rate: 0

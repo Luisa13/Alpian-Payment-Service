@@ -4,11 +4,15 @@ info:
   title: Payment Service API
   version: "1.0.0"
   description: |
-    **Idempotency**: `POST` endpoints require an `Idempotency-Key` header (UUID).
-    Replaying the same key + same body returns the original response.
-    Same key + different body returns `409 Conflict`.
+    **Idempotency**: `POST /api/v1/payments` requires an `Idempotency-Key` header (1-64 characters).
+    Replaying the same key with the same body returns the stored payment (`200`).
+    The same key with a different body returns `422` with code `IDEMPOTENCY_KEY_REUSED`.
 
-    **Error format**: All error responses follow RFC 9457 `ProblemDetail`.
+    **Settlement**: a payment is reserved and settled inside the request.
+    `201` = final (`COMPLETED` or `FAILED`), `202` = funds held, settlement still pending (`RESERVED`),
+    `422` = rejected at intake (`REJECTED`, e.g. insufficient funds).
+
+    **Error format**: all errors follow RFC 9457 `ProblemDetail` with a stable `code` property.
 
 servers:
   - url: http://localhost:8080
@@ -17,15 +21,15 @@ servers:
 tags:
   - name: Payments
     description: Payment operations
-
-# ─── Paths ────────────────────────────────────────────────────────────────────
+  - name: Accounts
+    description: Account read access
 
 paths:
 
-  /v1/payments:
+  /api/v1/payments:
     post:
       tags: [Payments]
-      summary: Initiate a payment
+      summary: Create a payment
       operationId: createPayment
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
@@ -39,15 +43,26 @@ paths:
             example:
               amount: "100.00"
               currency: "CHF"
-              sourceAccountId: "a0000000-0000-0000-0000-000000000001"
-              targetAccountId: "a0000000-0000-0000-0000-000000000002"
-              description: "Rent payment"
+              senderAccountId: "a0000000-0000-0000-0000-000000000001"
+              receiverAccountId: "a0000000-0000-0000-0000-000000000002"
       responses:
+        "200":
+          description: Idempotent replay; the body shows the payment's current status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentResponse"
         "201":
-          description: Payment accepted (idempotent — replaying returns the same 201)
+          description: Payment settled inside the request (COMPLETED or FAILED)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentResponse"
+        "202":
+          description: Funds held, settlement not confirmed yet (RESERVED)
           headers:
-            X-Request-Id:
-              description: Echo of the correlation ID
+            Location:
+              description: URL of the payment
               schema:
                 type: string
           content:
@@ -59,15 +74,9 @@ paths:
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ValidationProblemDetail"
-        "409":
-          description: Idempotency conflict — same key, different body
-          content:
-            application/problem+json:
-              schema:
                 $ref: "#/components/schemas/ProblemDetail"
         "422":
-          description: Business rule violation
+          description: Rejected (insufficient funds, unknown account, currency mismatch) or idempotency key reused with a different body
           content:
             application/problem+json:
               schema:
@@ -79,10 +88,10 @@ paths:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
 
-  /v1/payments/{id}:
+  /api/v1/payments/{id}:
     get:
       tags: [Payments]
-      summary: Get a payment by ID
+      summary: Get a payment
       operationId: getPayment
       parameters:
         - name: id
@@ -94,7 +103,7 @@ paths:
         - $ref: "#/components/parameters/CorrelationId"
       responses:
         "200":
-          description: Payment found
+          description: The payment
           content:
             application/json:
               schema:
@@ -105,14 +114,33 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "500":
-          description: Unexpected error
+
+  /api/v1/accounts/{id}:
+    get:
+      tags: [Accounts]
+      summary: Get an account with its balances
+      operationId: getAccount
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: The account
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountResponse"
+        "404":
+          description: Account not found
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-
-# ─── Components ───────────────────────────────────────────────────────────────
 
 components:
 
@@ -121,57 +149,50 @@ components:
       name: Idempotency-Key
       in: header
       required: true
-      description: Client-generated UUID. Guarantees at-most-once semantics.
+      description: Client-generated key that makes the request safe to retry
       schema:
         type: string
-        format: uuid
-        example: "550e8400-e29b-41d4-a716-446655440000"
-
+        minLength: 1
+        maxLength: 64
     CorrelationId:
       name: X-Request-Id
       in: header
       required: false
-      description: Optional caller-supplied correlation ID; generated if absent.
+      description: Correlation id echoed back in the response
       schema:
         type: string
-        example: "req-abc123"
 
   schemas:
 
     CreatePaymentRequest:
       type: object
-      required: [amount, currency, sourceAccountId, targetAccountId]
+      description: The receiver is either `receiverAccountId` (one of our accounts) or `receiverIban` (external), never both.
+      required: [amount, currency, senderAccountId]
       properties:
         amount:
           type: string
-          description: |
-            Decimal amount as a string to preserve precision.
-            No scientific notation. Max 2 decimal places for most currencies.
-          pattern: "^\\d+(\\.\\d{1,8})?$"
+          description: Decimal string, greater than zero, at most 2 decimal places
+          pattern: "^\\d+(\\.\\d{1,2})?$"
           example: "100.00"
         currency:
           type: string
           description: ISO 4217 currency code
-          minLength: 3
-          maxLength: 3
           pattern: "^[A-Z]{3}$"
           example: "CHF"
-        sourceAccountId:
+        senderAccountId:
           type: string
           format: uuid
-          description: Account to debit
-        targetAccountId:
+        receiverAccountId:
           type: string
           format: uuid
-          description: Account to credit
-        description:
+        receiverIban:
           type: string
-          maxLength: 255
-          description: Human-readable purpose
+          pattern: "^[A-Za-z]{2}\\d{2}[A-Za-z0-9 ]{11,30}$"
+          example: "CH9300762011623852957"
 
     PaymentResponse:
       type: object
-      required: [id, amount, currency, status, sourceAccountId, targetAccountId, createdAt]
+      required: [id, amount, currency, status, senderAccountId, createdAt]
       properties:
         id:
           type: string
@@ -184,17 +205,22 @@ components:
           example: "CHF"
         status:
           type: string
-          enum: [REQUESTED, SETTLED, FAILED]
+          enum: [REJECTED, RESERVED, COMPLETED, FAILED]
         failureReason:
           type: string
           nullable: true
-        sourceAccountId:
+          description: INSUFFICIENT_FUNDS or RAIL_REJECTED
+        senderAccountId:
           type: string
           format: uuid
-        targetAccountId:
+        receiverAccountId:
           type: string
           format: uuid
-        description:
+          nullable: true
+        receiverIban:
+          type: string
+          nullable: true
+        railReference:
           type: string
           nullable: true
         createdAt:
@@ -205,14 +231,37 @@ components:
           format: date-time
           nullable: true
 
-    # RFC 9457 ProblemDetail
+    AccountResponse:
+      type: object
+      required: [id, ownerName, accountType, currency, balance, availableBalance]
+      properties:
+        id:
+          type: string
+          format: uuid
+        ownerName:
+          type: string
+        accountType:
+          type: string
+          enum: [CUSTOMER, CLEARING]
+        currency:
+          type: string
+          example: "CHF"
+        balance:
+          type: string
+          example: "10000.00"
+        availableBalance:
+          type: string
+          description: Balance minus funds on hold
+          example: "9900.00"
+
+    # RFC 9457 ProblemDetail with a stable machine-readable code
     ProblemDetail:
       type: object
+      required: [code]
       properties:
         type:
           type: string
           format: uri
-          description: URI identifying the problem type
         title:
           type: string
         status:
@@ -222,21 +271,30 @@ components:
         instance:
           type: string
           format: uri
+        code:
+          type: string
+          description: Stable error code, safe to switch on
+          enum:
+            - VALIDATION_ERROR
+            - MALFORMED_REQUEST
+            - MISSING_HEADER
+            - PAYMENT_NOT_FOUND
+            - ACCOUNT_NOT_FOUND
+            - UNKNOWN_ACCOUNT
+            - CURRENCY_MISMATCH
+            - INSUFFICIENT_FUNDS
+            - IDEMPOTENCY_KEY_REUSED
+            - CONCURRENT_MODIFICATION
+            - INTERNAL_ERROR
+        paymentId:
+          type: string
+          format: uuid
+          description: Present when a payment was rejected (code is the rejection reason)
+        violations:
+          type: object
+          description: Field path to error message (VALIDATION_ERROR only)
+          additionalProperties:
+            type: string
         errorReference:
           type: string
           description: Opaque reference for server-side log correlation (500 only)
-
-    # ProblemDetail extended with per-field validation errors
-    ValidationProblemDetail:
-      allOf:
-        - $ref: "#/components/schemas/ProblemDetail"
-        - type: object
-          properties:
-            violations:
-              type: object
-              description: Map of field path → error message
-              additionalProperties:
-                type: string
-              example:
-                amount: "must match pattern '^\\d+(\\.\\d{1,8})?$'"
-                currency: "must match '[A-Z]{3}'"

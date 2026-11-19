@@ -16,5 +16,5 @@ spring:
 logging:
   level:
     root: INFO
-    ch.example.template: DEBUG
+    ch.alpian.payment: DEBUG
     org.springframework.kafka: INFO
