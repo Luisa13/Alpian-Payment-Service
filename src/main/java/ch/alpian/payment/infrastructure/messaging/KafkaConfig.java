@@ -2,6 +2,7 @@ package ch.alpian.payment.infrastructure.messaging;
 
 import ch.alpian.payment.application.events.PaymentEvents;
 import com.fasterxml.jackson.core.exc.StreamReadException;
+import org.apache.kafka.clients.admin.NewTopic;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
@@ -12,7 +13,6 @@ import org.springframework.kafka.listener.CommonErrorHandler;
 import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
 import org.springframework.kafka.listener.DefaultErrorHandler;
 import org.springframework.util.backoff.ExponentialBackOff;
-import org.apache.kafka.clients.admin.NewTopic;
 
 /**
  * Kafka topics and listener container configuration.
@@ -31,7 +31,10 @@ public class KafkaConfig {
 
     @Bean
     NewTopic paymentNotificationsDlt() {
-        return TopicBuilder.name(PaymentEvents.DLT_TOPIC).partitions(6).replicas(1).build();
+        return TopicBuilder.name(PaymentEvents.DLT_TOPIC)
+                .partitions(6)
+                .replicas(1)
+                .build();
     }
 
     @Bean

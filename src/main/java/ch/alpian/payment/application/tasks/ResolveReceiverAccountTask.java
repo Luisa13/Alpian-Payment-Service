@@ -22,7 +22,7 @@ public class ResolveReceiverAccountTask implements Task<Payment, UUID> {
         }
         String currency = payment.getAmount().currency();
         return accounts.findClearingAccountId(currency)
-                .orElseThrow(() ->
-                        new IllegalStateException("No clearing account configured for currency " + currency));
+                .orElseThrow(
+                        () -> new IllegalStateException("No clearing account configured for currency " + currency));
     }
 }

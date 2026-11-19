@@ -58,7 +58,11 @@ class JdbcPaymentRepository implements PaymentRepository {
                     .param("amount", p.getAmount().amount())
                     .param("currency", p.getAmount().currency())
                     .param("status", p.getStatus().name())
-                    .param("failureReason", p.getFailureReason() == null ? null : p.getFailureReason().name())
+                    .param(
+                            "failureReason",
+                            p.getFailureReason() == null
+                                    ? null
+                                    : p.getFailureReason().name())
                     .param("reservedAt", timestamp(p.getReservedAt()))
                     .param("finalizedAt", timestamp(p.getFinalizedAt()))
                     .param("createdAt", timestamp(p.getCreatedAt()))
@@ -97,7 +101,11 @@ class JdbcPaymentRepository implements PaymentRepository {
                         WHERE id = :id AND status = :from
                         """)
                 .param("to", p.getStatus().name())
-                .param("failureReason", p.getFailureReason() == null ? null : p.getFailureReason().name())
+                .param(
+                        "failureReason",
+                        p.getFailureReason() == null
+                                ? null
+                                : p.getFailureReason().name())
                 .param("railReference", p.getRailReference())
                 .param("finalizedAt", timestamp(p.getFinalizedAt()))
                 .param("id", p.getId())
@@ -112,9 +120,7 @@ class JdbcPaymentRepository implements PaymentRepository {
                         UPDATE payments
                         SET settlement_attempts = settlement_attempts + 1, version = version + 1, updated_at = now()
                         WHERE id = :id AND status = 'RESERVED'
-                        """)
-                .param("id", paymentId)
-                .update();
+                        """).param("id", paymentId).update();
     }
 
     private static Payment map(ResultSet rs, int rowNum) throws SQLException {

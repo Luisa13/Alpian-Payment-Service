@@ -34,9 +34,7 @@ class PaymentStatusTest {
     @EnumSource(PaymentStatus.class)
     void final_states_never_change(PaymentStatus next) {
         for (PaymentStatus from : FINAL_STATES) {
-            assertThat(from.canTransitionTo(next))
-                    .as("%s -> %s", from, next)
-                    .isFalse();
+            assertThat(from.canTransitionTo(next)).as("%s -> %s", from, next).isFalse();
         }
     }
 

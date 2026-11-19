@@ -50,7 +50,8 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(ConstraintViolationException.class)
-    public ResponseEntity<ProblemDetail> handleConstraintViolation(ConstraintViolationException ex, WebRequest request) {
+    public ResponseEntity<ProblemDetail> handleConstraintViolation(
+            ConstraintViolationException ex, WebRequest request) {
         Map<String, String> violations = new LinkedHashMap<>();
         ex.getConstraintViolations()
                 .forEach(v -> violations.put(lastSegment(v.getPropertyPath().toString()), v.getMessage()));
@@ -70,7 +71,8 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
-    public ResponseEntity<ProblemDetail> handleTypeMismatch(MethodArgumentTypeMismatchException ex, WebRequest request) {
+    public ResponseEntity<ProblemDetail> handleTypeMismatch(
+            MethodArgumentTypeMismatchException ex, WebRequest request) {
         return validationProblem(Map.of(ex.getName(), "has an invalid value"), request);
     }
 

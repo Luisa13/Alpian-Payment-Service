@@ -96,8 +96,7 @@ public class FinalizeSettlementFlow {
         }
 
         UUID receiverAccountId = resolveReceiver.execute(payment);
-        Map<UUID, Account> locked =
-                lockAccounts.execute(List.of(payment.getSenderAccountId(), receiverAccountId));
+        Map<UUID, Account> locked = lockAccounts.execute(List.of(payment.getSenderAccountId(), receiverAccountId));
         Account sender = locked.get(payment.getSenderAccountId());
         Account receiver = locked.get(receiverAccountId);
         sender.settleDebit(payment.getAmount());
@@ -115,9 +114,8 @@ public class FinalizeSettlementFlow {
             return alreadyMoved(payment);
         }
 
-        Account sender = lockAccounts
-                .execute(List.of(payment.getSenderAccountId()))
-                .get(payment.getSenderAccountId());
+        Account sender =
+                lockAccounts.execute(List.of(payment.getSenderAccountId())).get(payment.getSenderAccountId());
         sender.release(payment.getAmount());
         saveAccounts.execute(List.of(sender));
 

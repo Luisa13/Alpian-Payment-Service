@@ -61,7 +61,8 @@ class PaymentControllerTest {
         json.append("\"amount\":").append(amount == null ? "null" : "\"" + amount + "\"");
         json.append(",\"currency\":").append(currency == null ? "null" : "\"" + currency + "\"");
         json.append(",\"senderAccountId\":").append(sender == null ? "null" : "\"" + sender + "\"");
-        if (receiverAccount != null) json.append(",\"receiverAccountId\":\"").append(receiverAccount).append("\"");
+        if (receiverAccount != null)
+            json.append(",\"receiverAccountId\":\"").append(receiverAccount).append("\"");
         if (iban != null) json.append(",\"receiverIban\":\"").append(iban).append("\"");
         return json.append("}").toString();
     }
@@ -71,7 +72,8 @@ class PaymentControllerTest {
     }
 
     private static MockHttpServletRequestBuilder createRequest(String key, String json) {
-        var request = post("/api/v1/payments").contentType(MediaType.APPLICATION_JSON).content(json);
+        var request =
+                post("/api/v1/payments").contentType(MediaType.APPLICATION_JSON).content(json);
         return key == null ? request : request.header("Idempotency-Key", key);
     }
 
@@ -224,8 +226,7 @@ class PaymentControllerTest {
         org.mockito.ArgumentCaptor<CreatePaymentFlow.Arguments> captor =
                 org.mockito.ArgumentCaptor.forClass(CreatePaymentFlow.Arguments.class);
         org.mockito.Mockito.verify(createPaymentFlow).initiate(captor.capture());
-        org.assertj.core.api.Assertions.assertThat(captor.getValue().receiver())
-                .isEqualTo(Receiver.external(IBAN));
+        org.assertj.core.api.Assertions.assertThat(captor.getValue().receiver()).isEqualTo(Receiver.external(IBAN));
         org.assertj.core.api.Assertions.assertThat(captor.getValue().amount()).isEqualTo(Money.of("5.00", "CHF"));
         org.assertj.core.api.Assertions.assertThat(captor.getValue().idempotencyKey())
                 .isEqualTo("key-1");

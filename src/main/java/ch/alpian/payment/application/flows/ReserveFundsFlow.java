@@ -78,8 +78,8 @@ public class ReserveFundsFlow {
             return new Result.Replayed(existing.get());
         }
 
-        Account sender =
-                lockSender.execute(new LockSenderAccountTask.Arguments(args.senderAccountId(), args.amount().currency()));
+        Account sender = lockSender.execute(new LockSenderAccountTask.Arguments(
+                args.senderAccountId(), args.amount().currency()));
         validateReceiver.execute(new ValidateReceiverTask.Arguments(
                 args.receiver(), args.amount().currency()));
 

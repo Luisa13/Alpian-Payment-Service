@@ -17,7 +17,8 @@ public final class RequestHash {
     private RequestHash() {}
 
     public static String of(UUID senderAccountId, Receiver receiver, Money amount) {
-        String receiverPart = receiver.isInternal() ? "INTERNAL:" + receiver.accountId() : "EXTERNAL:" + receiver.iban();
+        String receiverPart =
+                receiver.isInternal() ? "INTERNAL:" + receiver.accountId() : "EXTERNAL:" + receiver.iban();
         String normalized = String.join(
                 "|",
                 senderAccountId.toString(),

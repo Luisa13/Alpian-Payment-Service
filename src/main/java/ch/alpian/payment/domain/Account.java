@@ -17,8 +17,7 @@ public class Account {
     private Money availableBalance;
     private final long version;
 
-    public Account(
-            UUID id, String ownerName, AccountType type, Money balance, Money availableBalance, long version) {
+    public Account(UUID id, String ownerName, AccountType type, Money balance, Money availableBalance, long version) {
         if (availableBalance.isGreaterThan(balance)) {
             throw new IllegalArgumentException("available balance must not exceed balance");
         }

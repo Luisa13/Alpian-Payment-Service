@@ -21,12 +21,10 @@ public abstract class PaymentIntegrationTest extends IntegrationTestBase {
         jdbc.sql("""
                         INSERT INTO accounts (id, owner_name, account_type, currency, balance, available_balance)
                         VALUES (:id, 'IT account', 'CUSTOMER', 'CHF', :amount, :amount)
-                        """)
-                .param("id", id)
-                .param("amount", amount)
-                .update();
+                        """).param("id", id).param("amount", amount).update();
         if (amount.signum() != 0) {
-            jdbc.sql("INSERT INTO ledger_entries (id, payment_id, account_id, amount) VALUES (:id, NULL, :account, :amount)")
+            jdbc.sql(
+                            "INSERT INTO ledger_entries (id, payment_id, account_id, amount) VALUES (:id, NULL, :account, :amount)")
                     .param("id", UUID.randomUUID())
                     .param("account", id)
                     .param("amount", amount)

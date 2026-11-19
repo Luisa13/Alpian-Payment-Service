@@ -31,8 +31,8 @@ public class WriteOutboxTask implements Task<Payment, Void> {
     @Override
     public Void execute(Payment payment) {
         String eventType = PaymentEvents.typeFor(payment.getStatus());
-        EventEnvelope<PaymentPayload> envelope = EventEnvelope.of(
-                eventType, PaymentEvents.EVENT_VERSION, correlationId(), PaymentPayload.from(payment));
+        EventEnvelope<PaymentPayload> envelope =
+                EventEnvelope.of(eventType, PaymentEvents.EVENT_VERSION, correlationId(), PaymentPayload.from(payment));
         outbox.append(envelope.eventId(), payment.getId(), eventType, serialize(envelope));
         return null;
     }

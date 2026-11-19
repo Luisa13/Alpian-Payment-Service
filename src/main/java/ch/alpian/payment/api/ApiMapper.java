@@ -19,7 +19,8 @@ final class ApiMapper {
         response.setAmount(p.getAmount().amount().toPlainString());
         response.setCurrency(p.getAmount().currency());
         response.setStatus(PaymentResponse.StatusEnum.valueOf(p.getStatus().name()));
-        response.setFailureReason(p.getFailureReason() == null ? null : p.getFailureReason().name());
+        response.setFailureReason(
+                p.getFailureReason() == null ? null : p.getFailureReason().name());
         response.setSenderAccountId(p.getSenderAccountId());
         response.setReceiverAccountId(p.getReceiver().accountId());
         response.setReceiverIban(p.getReceiver().iban());
@@ -33,7 +34,8 @@ final class ApiMapper {
         var response = new AccountResponse();
         response.setId(a.getId());
         response.setOwnerName(a.getOwnerName());
-        response.setAccountType(AccountResponse.AccountTypeEnum.valueOf(a.getType().name()));
+        response.setAccountType(
+                AccountResponse.AccountTypeEnum.valueOf(a.getType().name()));
         response.setCurrency(a.getCurrency());
         response.setBalance(a.getBalance().amount().toPlainString());
         response.setAvailableBalance(a.getAvailableBalance().amount().toPlainString());

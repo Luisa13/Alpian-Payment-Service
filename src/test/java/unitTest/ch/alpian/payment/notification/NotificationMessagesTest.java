@@ -17,14 +17,7 @@ class NotificationMessagesTest {
 
     private static PaymentPayload external(String status, String reason) {
         return new PaymentPayload(
-                UUID.randomUUID(),
-                UUID.randomUUID(),
-                null,
-                "CH9300762011623852957",
-                "10.00",
-                "CHF",
-                status,
-                reason);
+                UUID.randomUUID(), UUID.randomUUID(), null, "CH9300762011623852957", "10.00", "CHF", status, reason);
     }
 
     @Test

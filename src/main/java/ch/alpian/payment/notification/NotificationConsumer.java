@@ -66,9 +66,7 @@ class NotificationConsumer {
         log.info("NOTIFICATION to account {}: {}", payload.senderAccountId(), message);
     }
 
-    @KafkaListener(
-            topics = PaymentEvents.DLT_TOPIC,
-            groupId = "${app.notification.group-id:payment-notifications}-dlt")
+    @KafkaListener(topics = PaymentEvents.DLT_TOPIC, groupId = "${app.notification.group-id:payment-notifications}-dlt")
     public void onDeadLetter(ConsumerRecord<String, String> record) {
         dltCounter.increment();
         log.error("Message landed in DLT: topic={} key={} offset={}", record.topic(), record.key(), record.offset());

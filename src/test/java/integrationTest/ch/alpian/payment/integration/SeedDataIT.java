@@ -32,9 +32,7 @@ class SeedDataIT extends PaymentIntegrationTest {
                         SELECT COUNT(*) FROM accounts
                         WHERE owner_name <> 'IT account'
                           AND (balance < 0 OR available_balance < 0 OR available_balance <> balance)
-                        """)
-                .query(Long.class)
-                .list();
+                        """).query(Long.class).list();
         assertThat(violations).containsExactly(0L);
     }
 
@@ -43,9 +41,7 @@ class SeedDataIT extends PaymentIntegrationTest {
         long mismatches = jdbc.sql("""
                         SELECT COUNT(*) FROM accounts a
                         WHERE a.balance <> COALESCE((SELECT SUM(l.amount) FROM ledger_entries l WHERE l.account_id = a.id), 0)
-                        """)
-                .query(Long.class)
-                .single();
+                        """).query(Long.class).single();
         assertThat(mismatches).isZero();
     }
 
@@ -64,7 +60,8 @@ class SeedDataIT extends PaymentIntegrationTest {
     void opening_ledger_entries_have_no_payment_and_clearing_starts_at_zero() {
         assertThat(ledgerSum(ALICE)).isEqualByComparingTo("10000.00");
         assertThat(ledgerSum(clearingAccountId()).signum()).isGreaterThanOrEqualTo(0);
-        long openingForAlice = jdbc.sql("SELECT COUNT(*) FROM ledger_entries WHERE account_id = :id AND payment_id IS NULL")
+        long openingForAlice = jdbc.sql(
+                        "SELECT COUNT(*) FROM ledger_entries WHERE account_id = :id AND payment_id IS NULL")
                 .param("id", ALICE)
                 .query(Long.class)
                 .single();
@@ -73,46 +70,84 @@ class SeedDataIT extends PaymentIntegrationTest {
 
     @Test
     void database_refuses_a_negative_balance() {
-        assertThatThrownBy(() -> insertAccount("CUSTOMER", "-1.00", "-1.00")).isInstanceOf(DataIntegrityViolationException.class);
+        assertThatThrownBy(() -> insertAccount("CUSTOMER", "-1.00", "-1.00"))
+                .isInstanceOf(DataIntegrityViolationException.class);
     }
 
     @Test
     void database_refuses_available_balance_above_balance() {
-        assertThatThrownBy(() -> insertAccount("CUSTOMER", "10.00", "10.01")).isInstanceOf(DataIntegrityViolationException.class);
+        assertThatThrownBy(() -> insertAccount("CUSTOMER", "10.00", "10.01"))
+                .isInstanceOf(DataIntegrityViolationException.class);
     }
 
     @Test
     void database_refuses_an_unknown_account_type() {
-        assertThatThrownBy(() -> insertAccount("SAVINGS", "1.00", "1.00")).isInstanceOf(DataIntegrityViolationException.class);
+        assertThatThrownBy(() -> insertAccount("SAVINGS", "1.00", "1.00"))
+                .isInstanceOf(DataIntegrityViolationException.class);
     }
 
     @Test
     void database_refuses_an_unknown_payment_status() {
         UUID sender = newAccount("10.00");
-        assertThatThrownBy(() -> insertPayment(sender, "INTERNAL", ALICE, null, "1.00", "PENDING", UUID.randomUUID().toString()))
+        assertThatThrownBy(() -> insertPayment(
+                        sender,
+                        "INTERNAL",
+                        ALICE,
+                        null,
+                        "1.00",
+                        "PENDING",
+                        UUID.randomUUID().toString()))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 
     @Test
     void database_refuses_a_payment_with_both_or_no_receiver() {
         UUID sender = newAccount("10.00");
-        assertThatThrownBy(() -> insertPayment(sender, "INTERNAL", ALICE, "CH9300762011623852957", "1.00", "RESERVED", UUID.randomUUID().toString()))
+        assertThatThrownBy(() -> insertPayment(
+                        sender,
+                        "INTERNAL",
+                        ALICE,
+                        "CH9300762011623852957",
+                        "1.00",
+                        "RESERVED",
+                        UUID.randomUUID().toString()))
                 .isInstanceOf(DataIntegrityViolationException.class);
-        assertThatThrownBy(() -> insertPayment(sender, "EXTERNAL", null, null, "1.00", "RESERVED", UUID.randomUUID().toString()))
+        assertThatThrownBy(() -> insertPayment(
+                        sender,
+                        "EXTERNAL",
+                        null,
+                        null,
+                        "1.00",
+                        "RESERVED",
+                        UUID.randomUUID().toString()))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 
     @Test
     void database_refuses_a_payment_to_oneself() {
         UUID sender = newAccount("10.00");
-        assertThatThrownBy(() -> insertPayment(sender, "INTERNAL", sender, null, "1.00", "RESERVED", UUID.randomUUID().toString()))
+        assertThatThrownBy(() -> insertPayment(
+                        sender,
+                        "INTERNAL",
+                        sender,
+                        null,
+                        "1.00",
+                        "RESERVED",
+                        UUID.randomUUID().toString()))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 
     @Test
     void database_refuses_a_zero_amount_payment() {
         UUID sender = newAccount("10.00");
-        assertThatThrownBy(() -> insertPayment(sender, "INTERNAL", ALICE, null, "0.00", "RESERVED", UUID.randomUUID().toString()))
+        assertThatThrownBy(() -> insertPayment(
+                        sender,
+                        "INTERNAL",
+                        ALICE,
+                        null,
+                        "0.00",
+                        "RESERVED",
+                        UUID.randomUUID().toString()))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 
@@ -128,16 +163,28 @@ class SeedDataIT extends PaymentIntegrationTest {
     @Test
     void database_refuses_a_zero_ledger_entry_and_double_posting_per_account() {
         UUID sender = newAccount("10.00");
-        UUID payment = insertPayment(sender, "INTERNAL", ALICE, null, "1.00", "RESERVED", UUID.randomUUID().toString());
-        assertThatThrownBy(() -> insertLedger(payment, sender, "0.00")).isInstanceOf(DataIntegrityViolationException.class);
+        UUID payment = insertPayment(
+                sender,
+                "INTERNAL",
+                ALICE,
+                null,
+                "1.00",
+                "RESERVED",
+                UUID.randomUUID().toString());
+        assertThatThrownBy(() -> insertLedger(payment, sender, "0.00"))
+                .isInstanceOf(DataIntegrityViolationException.class);
 
         try {
             insertLedger(payment, sender, "-1.00");
             assertThatThrownBy(() -> insertLedger(payment, sender, "-1.00"))
                     .isInstanceOf(DataIntegrityViolationException.class);
         } finally {
-            jdbc.sql("DELETE FROM ledger_entries WHERE payment_id = :payment").param("payment", payment).update();
-            jdbc.sql("DELETE FROM payments WHERE id = :payment").param("payment", payment).update();
+            jdbc.sql("DELETE FROM ledger_entries WHERE payment_id = :payment")
+                    .param("payment", payment)
+                    .update();
+            jdbc.sql("DELETE FROM payments WHERE id = :payment")
+                    .param("payment", payment)
+                    .update();
         }
     }
 
@@ -160,7 +207,13 @@ class SeedDataIT extends PaymentIntegrationTest {
     }
 
     private UUID insertPayment(
-            UUID sender, String receiverType, UUID receiverAccount, String iban, String amount, String status, String key) {
+            UUID sender,
+            String receiverType,
+            UUID receiverAccount,
+            String iban,
+            String amount,
+            String status,
+            String key) {
         UUID id = UUID.randomUUID();
         jdbc.sql("""
                         INSERT INTO payments (id, idempotency_key, request_hash, sender_account_id, receiver_type,
@@ -181,7 +234,8 @@ class SeedDataIT extends PaymentIntegrationTest {
     }
 
     private void insertLedger(UUID payment, UUID account, String amount) {
-        jdbc.sql("INSERT INTO ledger_entries (id, payment_id, account_id, amount) VALUES (:id, :payment, :account, :amount)")
+        jdbc.sql(
+                        "INSERT INTO ledger_entries (id, payment_id, account_id, amount) VALUES (:id, :payment, :account, :amount)")
                 .param("id", UUID.randomUUID())
                 .param("payment", payment)
                 .param("account", account)
