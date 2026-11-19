@@ -71,7 +71,7 @@ Each arrow that crosses a service boundary is at-least-once: the outbox guarante
 
 ## How to replace the sample feature
 
-1. Delete `src/main/java/ch/example/template/transfer/` and its tests.
+1. Delete `src/main/java/ch/alpian/payment/transfer/` and its tests.
 2. Run `./gradlew build` — only compile errors from deleted references remain.
 3. Add your own aggregate under `<your-domain>/domain/`, application service under `<your-domain>/application/`, and Kafka consumer under `<your-domain>/infrastructure/`.
 4. Reuse `OutboxEntry` / `OutboxRelay`, `ProcessedEventStore`, `IdempotencyStore`, `EventEnvelope`, `CorrelationIdFilter`, `KafkaConfig`, and `GlobalExceptionHandler` unchanged.

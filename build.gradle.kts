@@ -194,8 +194,8 @@ tasks.jacocoTestCoverageVerification {
         rule {
             element = "CLASS"
             includes = listOf(
-                "ch.example.template.domain.*",
-                "ch.example.template.application.*",
+                "ch.alpian.payment.domain.*",
+                "ch.alpian.payment.application.*",
             )
             limit {
                 counter = "LINE"
@@ -229,8 +229,8 @@ openApiGenerate {
     generatorName.set("spring")
     inputSpec.set("${projectDir}/src/main/resources/openapi/api.yaml")
     outputDir.set(generatedOpenApiDir.get().asFile.absolutePath)
-    apiPackage.set("ch.example.template.api.generated")
-    modelPackage.set("ch.example.template.api.generated.model")
+    apiPackage.set("ch.alpian.payment.api.generated")
+    modelPackage.set("ch.alpian.payment.api.generated.model")
     configOptions.set(
         mapOf(
             "interfaceOnly" to "true",

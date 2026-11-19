@@ -31,7 +31,10 @@ spring:
       retries: 2147483647      # let Kafka exhaust delivery.timeout.ms; don't cap retries
       properties:
         enable.idempotence: "true"
-        delivery.timeout.ms: "120000"
+        # Short bounds: the outbox relay waits for the ack inside a transaction, and it retries itself.
+        delivery.timeout.ms: "10000"
+        request.timeout.ms: "5000"
+        max.block.ms: "5000"
         max.in.flight.requests.per.connection: "5"
     consumer:
       group-id: ${KAFKA_CONSUMER_GROUP:payment-service}
@@ -49,6 +52,23 @@ spring:
 server:
   port: ${SERVER_PORT:8080}
   shutdown: graceful
+
+# ─── Application settings ────────────────────────────────────────────────────
+app:
+  outbox:
+    relay-interval-ms: 500       # outbox relay poll interval
+    ack-timeout-ms: 15000        # how long the relay waits for a Kafka ack per record
+  notification:
+    group-id: payment-notifications
+  retry:                         # whole-transaction retry on deadlock / lock timeout
+    max-attempts: 4
+    base-backoff-ms: 20
+  rail:
+    timeout: 2s                  # hard limit for a settlement rail call
+    simulated:                   # the simulated external rail (receiver is an IBAN)
+      delay: 100ms
+      rejection-rate: 0.05
+      timeout-rate: 0.05
 
 # ─── Actuator / Observability ────────────────────────────────────────────────
 management:
@@ -78,6 +98,6 @@ management:
 logging:
   level:
     root: INFO
-    ch.example.template: INFO
+    ch.alpian.payment: INFO
   # Structured JSON logging is activated via logback-spring.xml when the profile
   # is NOT "local".  See src/main/resources/logback-spring.xml.
