@@ -40,8 +40,14 @@ class FinalizeSettlementFlowTest {
     private final WriteOutboxTask writeOutbox = mock(WriteOutboxTask.class);
 
     private final FinalizeSettlementFlow flow = new FinalizeSettlementFlow(
-            transition, findPayment, resolveReceiver, lockAccounts, saveAccounts,
-            postLedger, recordAttempt, writeOutbox);
+            transition,
+            findPayment,
+            resolveReceiver,
+            lockAccounts,
+            saveAccounts,
+            postLedger,
+            recordAttempt,
+            writeOutbox);
 
     @Test
     void finalize_settlement_returns_already_moved_when_not_reserved_or_transition_loses_race() {

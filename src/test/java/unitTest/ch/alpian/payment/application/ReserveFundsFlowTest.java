@@ -34,8 +34,8 @@ class ReserveFundsFlowTest {
     private final SavePaymentTask savePayment = mock(SavePaymentTask.class);
     private final WriteOutboxTask writeOutbox = mock(WriteOutboxTask.class);
 
-    private final ReserveFundsFlow flow = new ReserveFundsFlow(
-            checkIdempotency, lockSender, validateReceiver, holdFunds, savePayment, writeOutbox);
+    private final ReserveFundsFlow flow =
+            new ReserveFundsFlow(checkIdempotency, lockSender, validateReceiver, holdFunds, savePayment, writeOutbox);
 
     private static final UUID SENDER_ID = UUID.randomUUID();
     private static final Receiver RECEIVER = Receiver.internal(UUID.randomUUID());
@@ -47,7 +47,8 @@ class ReserveFundsFlowTest {
         when(checkIdempotency.execute(any())).thenReturn(Optional.empty());
         when(lockSender.execute(any())).thenReturn(sender);
 
-        var args = new ReserveFundsFlow.Arguments("key-1", "h".repeat(64), SENDER_ID, RECEIVER, Money.of("100.00", "CHF"));
+        var args =
+                new ReserveFundsFlow.Arguments("key-1", "h".repeat(64), SENDER_ID, RECEIVER, Money.of("100.00", "CHF"));
         var result = flow.reserve(args);
 
         assertThat(result).isInstanceOf(ReserveFundsFlow.Result.Rejected.class);
@@ -66,7 +67,8 @@ class ReserveFundsFlowTest {
         when(checkIdempotency.execute(any())).thenReturn(Optional.empty());
         when(lockSender.execute(any())).thenReturn(sender);
 
-        var args = new ReserveFundsFlow.Arguments("key-2", "h".repeat(64), SENDER_ID, RECEIVER, Money.of("50.00", "CHF"));
+        var args =
+                new ReserveFundsFlow.Arguments("key-2", "h".repeat(64), SENDER_ID, RECEIVER, Money.of("50.00", "CHF"));
         var result = flow.reserve(args);
 
         assertThat(result).isInstanceOf(ReserveFundsFlow.Result.Reserved.class);
@@ -78,10 +80,16 @@ class ReserveFundsFlowTest {
     @Test
     void replay_of_a_rejected_payment_returns_the_original_without_holding_funds() {
         Payment existing = Payment.rejected(
-                "key-3", "h".repeat(64), SENDER_ID, RECEIVER, Money.of("10.00", "CHF"), FailureReason.INSUFFICIENT_FUNDS);
+                "key-3",
+                "h".repeat(64),
+                SENDER_ID,
+                RECEIVER,
+                Money.of("10.00", "CHF"),
+                FailureReason.INSUFFICIENT_FUNDS);
         when(checkIdempotency.execute(any())).thenReturn(Optional.of(existing));
 
-        var args = new ReserveFundsFlow.Arguments("key-3", "h".repeat(64), SENDER_ID, RECEIVER, Money.of("10.00", "CHF"));
+        var args =
+                new ReserveFundsFlow.Arguments("key-3", "h".repeat(64), SENDER_ID, RECEIVER, Money.of("10.00", "CHF"));
         var result = flow.reserve(args);
 
         assertThat(result).isInstanceOf(ReserveFundsFlow.Result.Replayed.class);

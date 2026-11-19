@@ -44,8 +44,8 @@ class ValidateReceiverTaskTest {
         AccountRepository repo = mock(AccountRepository.class);
         var task = new ValidateReceiverTask(repo);
 
-        assertThatCode(() -> task.execute(new ValidateReceiverTask.Arguments(
-                        Receiver.external("CH9300762011623852957"), "CHF")))
+        assertThatCode(() -> task.execute(
+                        new ValidateReceiverTask.Arguments(Receiver.external("CH9300762011623852957"), "CHF")))
                 .doesNotThrowAnyException();
         verify(repo, never()).findById(any());
     }

@@ -46,8 +46,8 @@ class CreatePaymentFlowTest {
     private final TransactionRetry retry = mock(TransactionRetry.class);
     private final PlatformTransactionManager txManager = mock(PlatformTransactionManager.class);
 
-    private final CreatePaymentFlow flow = new CreatePaymentFlow(
-            reserveFunds, finalizeSettlement, callRail, checkIdempotency, retry, txManager);
+    private final CreatePaymentFlow flow =
+            new CreatePaymentFlow(reserveFunds, finalizeSettlement, callRail, checkIdempotency, retry, txManager);
 
     private static final UUID SENDER_ID = UUID.randomUUID();
     private static final Receiver RECEIVER = Receiver.internal(UUID.randomUUID());
@@ -69,8 +69,8 @@ class CreatePaymentFlowTest {
 
     @Test
     void rejected_reservation_returns_rejected_kind_without_calling_the_rail() {
-        Payment rejected = Payment.rejected(
-                "key", "h".repeat(64), SENDER_ID, RECEIVER, AMOUNT, FailureReason.INSUFFICIENT_FUNDS);
+        Payment rejected =
+                Payment.rejected("key", "h".repeat(64), SENDER_ID, RECEIVER, AMOUNT, FailureReason.INSUFFICIENT_FUNDS);
         when(reserveFunds.reserve(any())).thenReturn(new ReserveFundsFlow.Result.Rejected(rejected));
 
         PaymentResult result = flow.initiate(args());
@@ -114,8 +114,7 @@ class CreatePaymentFlowTest {
 
         when(reserveFunds.reserve(any())).thenReturn(new ReserveFundsFlow.Result.Reserved(reserved));
         when(callRail.execute(any())).thenReturn(SettlementOutcome.unknown());
-        when(finalizeSettlement.finalizeSettlement(any(), any()))
-                .thenThrow(new RuntimeException("db blew up"));
+        when(finalizeSettlement.finalizeSettlement(any(), any())).thenThrow(new RuntimeException("db blew up"));
 
         PaymentResult result = flow.initiate(args());
 

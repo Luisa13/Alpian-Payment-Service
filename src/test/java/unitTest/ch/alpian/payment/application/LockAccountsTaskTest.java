@@ -38,8 +38,10 @@ class LockAccountsTaskTest {
         AccountRepository repo = mock(AccountRepository.class);
         UUID idA = UUID.randomUUID();
         UUID idB = UUID.randomUUID();
-        Account a = new Account(idA, "Alice", AccountType.CUSTOMER, Money.of("10.00", "CHF"), Money.of("10.00", "CHF"), 0);
-        Account b = new Account(idB, "Bob", AccountType.CUSTOMER, Money.of("20.00", "CHF"), Money.of("20.00", "CHF"), 0);
+        Account a =
+                new Account(idA, "Alice", AccountType.CUSTOMER, Money.of("10.00", "CHF"), Money.of("10.00", "CHF"), 0);
+        Account b =
+                new Account(idB, "Bob", AccountType.CUSTOMER, Money.of("20.00", "CHF"), Money.of("20.00", "CHF"), 0);
         when(repo.findAllByIdForUpdate(any())).thenReturn(List.of(a, b));
 
         var task = new LockAccountsTask(repo);

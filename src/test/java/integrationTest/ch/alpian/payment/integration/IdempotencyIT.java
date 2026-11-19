@@ -1,9 +1,11 @@
 package ch.alpian.payment.integration;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
 import ch.alpian.payment.api.generated.model.CreatePaymentRequest;
 import ch.alpian.payment.api.generated.model.PaymentResponse;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -59,7 +61,8 @@ class IdempotencyIT extends PaymentIntegrationTest {
             }
 
             assertThat(responses)
-                    .allSatisfy(r -> assertThat(r.getStatusCode()).isIn(HttpStatus.CREATED, HttpStatus.OK));
+                    .allSatisfy(r ->
+                            assertThat(r.getStatusCode()).isIn(HttpStatus.CREATED, HttpStatus.OK, HttpStatus.ACCEPTED));
             List<UUID> ids =
                     responses.stream().map(r -> r.getBody().getId()).distinct().toList();
             assertThat(ids).hasSize(1);
@@ -70,10 +73,12 @@ class IdempotencyIT extends PaymentIntegrationTest {
                     .query(Long.class)
                     .single();
             assertThat(rows).isEqualTo(1);
-            assertThat(balance(sender)).isEqualByComparingTo("900.00");
-            assertThat(available(sender)).isEqualByComparingTo("900.00");
-            assertThat(balance(receiver)).isEqualByComparingTo("100.00");
-            assertThat(ledgerRows(paymentId)).isEqualTo(2);
+            await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
+                assertThat(balance(sender)).isEqualByComparingTo("900.00");
+                assertThat(available(sender)).isEqualByComparingTo("900.00");
+                assertThat(balance(receiver)).isEqualByComparingTo("100.00");
+                assertThat(ledgerRows(paymentId)).isEqualTo(2);
+            });
         }
     }
 

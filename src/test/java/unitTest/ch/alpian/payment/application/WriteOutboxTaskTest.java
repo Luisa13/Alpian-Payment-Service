@@ -20,13 +20,17 @@ import org.junit.jupiter.api.Test;
 class WriteOutboxTaskTest {
 
     private final OutboxStore outbox = mock(OutboxStore.class);
-    private final WriteOutboxTask task = new WriteOutboxTask(outbox, new ObjectMapper().registerModule(new JavaTimeModule()));
+    private final WriteOutboxTask task =
+            new WriteOutboxTask(outbox, new ObjectMapper().registerModule(new JavaTimeModule()));
 
     @Test
     void reserved_payment_appends_outbox_row_with_correct_event_type_and_aggregate_id() {
         Payment payment = Payment.reserved(
-                "key-1", "h".repeat(64), UUID.randomUUID(),
-                Receiver.internal(UUID.randomUUID()), Money.of("25.00", "CHF"));
+                "key-1",
+                "h".repeat(64),
+                UUID.randomUUID(),
+                Receiver.internal(UUID.randomUUID()),
+                Money.of("25.00", "CHF"));
 
         task.execute(payment);
 
@@ -36,8 +40,11 @@ class WriteOutboxTaskTest {
     @Test
     void rejected_payment_appends_outbox_row_with_correct_event_type_and_aggregate_id() {
         Payment payment = Payment.rejected(
-                "key-2", "h".repeat(64), UUID.randomUUID(),
-                Receiver.internal(UUID.randomUUID()), Money.of("25.00", "CHF"),
+                "key-2",
+                "h".repeat(64),
+                UUID.randomUUID(),
+                Receiver.internal(UUID.randomUUID()),
+                Money.of("25.00", "CHF"),
                 FailureReason.INSUFFICIENT_FUNDS);
 
         task.execute(payment);

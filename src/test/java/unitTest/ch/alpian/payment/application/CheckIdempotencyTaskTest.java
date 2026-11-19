@@ -35,8 +35,12 @@ class CheckIdempotencyTaskTest {
     void same_key_and_same_hash_returns_the_existing_payment() {
         PaymentRepository repo = mock(PaymentRepository.class);
         Payment existing = Payment.rejected(
-                KEY, HASH, UUID.randomUUID(), Receiver.internal(UUID.randomUUID()),
-                Money.of("10.00", "CHF"), FailureReason.INSUFFICIENT_FUNDS);
+                KEY,
+                HASH,
+                UUID.randomUUID(),
+                Receiver.internal(UUID.randomUUID()),
+                Money.of("10.00", "CHF"),
+                FailureReason.INSUFFICIENT_FUNDS);
         when(repo.findByIdempotencyKey(KEY)).thenReturn(Optional.of(existing));
 
         var task = new CheckIdempotencyTask(repo);
@@ -49,8 +53,12 @@ class CheckIdempotencyTaskTest {
     void same_key_different_hash_throws_idempotency_conflict() {
         PaymentRepository repo = mock(PaymentRepository.class);
         Payment existing = Payment.rejected(
-                KEY, HASH, UUID.randomUUID(), Receiver.internal(UUID.randomUUID()),
-                Money.of("10.00", "CHF"), FailureReason.INSUFFICIENT_FUNDS);
+                KEY,
+                HASH,
+                UUID.randomUUID(),
+                Receiver.internal(UUID.randomUUID()),
+                Money.of("10.00", "CHF"),
+                FailureReason.INSUFFICIENT_FUNDS);
         when(repo.findByIdempotencyKey(KEY)).thenReturn(Optional.of(existing));
 
         var task = new CheckIdempotencyTask(repo);
