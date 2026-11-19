@@ -37,7 +37,7 @@ class JdbcAccountRepository implements AccountRepository {
 
     @Override
     public Optional<Account> findByIdForUpdate(UUID id) {
-        return jdbc.sql(SELECT + " WHERE id = :id FOR UPDATE")
+        return jdbc.sql(SELECT + " WHERE id = :id FOR NO KEY UPDATE")
                 .param("id", id)
                 .query(JdbcAccountRepository::map)
                 .optional();
@@ -45,7 +45,7 @@ class JdbcAccountRepository implements AccountRepository {
 
     @Override
     public List<Account> findAllByIdForUpdate(Collection<UUID> ids) {
-        return jdbc.sql(SELECT + " WHERE id IN (:ids) ORDER BY id FOR UPDATE")
+        return jdbc.sql(SELECT + " WHERE id IN (:ids) ORDER BY id FOR NO KEY UPDATE")
                 .param("ids", ids)
                 .query(JdbcAccountRepository::map)
                 .list();
