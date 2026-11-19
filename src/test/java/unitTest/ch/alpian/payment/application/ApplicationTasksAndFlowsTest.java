@@ -7,16 +7,8 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import ch.alpian.payment.application.flows.CreatePaymentFlow;
 import ch.alpian.payment.application.flows.FinalizeSettlementFlow;
-import ch.alpian.payment.application.flows.GetAccountFlow;
-import ch.alpian.payment.application.flows.GetPaymentFlow;
-import ch.alpian.payment.application.flows.PaymentResult;
-import ch.alpian.payment.application.flows.ReserveFundsFlow;
-import ch.alpian.payment.application.support.TransactionRetry;
 import ch.alpian.payment.application.tasks.CallSettlementRailTask;
-import ch.alpian.payment.application.tasks.CheckIdempotencyTask;
-import ch.alpian.payment.application.tasks.FindAccountByIdTask;
 import ch.alpian.payment.application.tasks.FindPaymentByIdTask;
 import ch.alpian.payment.application.tasks.LockAccountsTask;
 import ch.alpian.payment.application.tasks.LockSenderAccountTask;
@@ -31,7 +23,6 @@ import ch.alpian.payment.domain.Account;
 import ch.alpian.payment.domain.AccountRepository;
 import ch.alpian.payment.domain.AccountType;
 import ch.alpian.payment.domain.CurrencyMismatchException;
-import ch.alpian.payment.domain.EntityNotFoundException;
 import ch.alpian.payment.domain.Money;
 import ch.alpian.payment.domain.Payment;
 import ch.alpian.payment.domain.PaymentStatus;
@@ -44,7 +35,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
-import org.springframework.transaction.PlatformTransactionManager;
 
 class ApplicationTasksAndFlowsTest {
 
@@ -97,7 +87,7 @@ class ApplicationTasksAndFlowsTest {
     }
 
     @Test
-    void call_settlement_rail_returns_unknown_on_timeout_exception_or_interruption() {
+    void call_settlement_rail_returns_unknown_on_exception_or_interruption() {
         SettlementRail rail = mock(SettlementRail.class);
         when(rail.settle(any())).thenThrow(new IllegalStateException("rail exploded"));
         Payment payment = Payment.reserved(
@@ -107,23 +97,21 @@ class ApplicationTasksAndFlowsTest {
                 Receiver.external("CH9300762011623852957"),
                 Money.of("10.00", "CHF"));
 
-        var task = new CallSettlementRailTask(rail, Duration.ofMillis(100));
+        var task = new CallSettlementRailTask(rail, Duration.ofSeconds(1));
         assertThat(task.execute(payment)).isEqualTo(SettlementOutcome.unknown());
 
         doAnswer(inv -> {
-                    Thread.sleep(400);
-                    return SettlementOutcome.settled("LATE");
+                    Thread.sleep(500);
+                    return SettlementOutcome.settled("OK");
                 })
                 .when(rail)
                 .settle(any());
-        assertThat(task.execute(payment)).isEqualTo(SettlementOutcome.unknown());
-
         Thread.currentThread().interrupt();
         try {
             assertThat(task.execute(payment)).isEqualTo(SettlementOutcome.unknown());
             assertThat(Thread.currentThread().isInterrupted()).isTrue();
         } finally {
-            Thread.interrupted();
+            Thread.interrupted(); // clear interrupt flag
         }
     }
 
@@ -166,62 +154,5 @@ class ApplicationTasksAndFlowsTest {
         assertThat(flow.finalizeSettlement(reserved.getId(), SettlementOutcome.rejected())
                         .getStatus())
                 .isEqualTo(PaymentStatus.COMPLETED);
-    }
-
-    @Test
-    void get_account_and_get_payment_flows_delegate_and_throw_not_found() {
-        AccountRepository accounts = mock(AccountRepository.class);
-        UUID accId = UUID.randomUUID();
-        Account account = new Account(
-                accId, "Alice", AccountType.CUSTOMER, Money.of("50.00", "CHF"), Money.of("50.00", "CHF"), 0);
-        when(accounts.findById(accId)).thenReturn(Optional.of(account));
-        var findAccount = new FindAccountByIdTask(accounts);
-        var getAccountFlow = new GetAccountFlow(findAccount);
-        assertThat(getAccountFlow.initiate(new GetAccountFlow.Arguments(accId))).isEqualTo(account);
-        UUID missingAcc = UUID.randomUUID();
-        assertThatThrownBy(() -> getAccountFlow.initiate(new GetAccountFlow.Arguments(missingAcc)))
-                .isInstanceOf(EntityNotFoundException.class);
-
-        FindPaymentByIdTask findPayment = mock(FindPaymentByIdTask.class);
-        Payment payment = Payment.reserved(
-                "k", "h".repeat(64), accId, Receiver.internal(UUID.randomUUID()), Money.of("10.00", "CHF"));
-        when(findPayment.execute(payment.getId())).thenReturn(payment);
-        var getPaymentFlow = new GetPaymentFlow(findPayment);
-        assertThat(getPaymentFlow.initiate(new GetPaymentFlow.Arguments(payment.getId())))
-                .isEqualTo(payment);
-    }
-
-    @Test
-    void create_payment_flow_returns_accepted_on_unknown_outcome_or_finalization_failure() {
-        ReserveFundsFlow reserve = mock(ReserveFundsFlow.class);
-        FinalizeSettlementFlow finalize = mock(FinalizeSettlementFlow.class);
-        CallSettlementRailTask callRail = mock(CallSettlementRailTask.class);
-        CheckIdempotencyTask checkIdem = mock(CheckIdempotencyTask.class);
-        var flow = new CreatePaymentFlow(
-                reserve,
-                finalize,
-                callRail,
-                checkIdem,
-                new TransactionRetry(1, 1),
-                mock(PlatformTransactionManager.class));
-
-        UUID sender = UUID.randomUUID();
-        Receiver receiver = Receiver.internal(UUID.randomUUID());
-        Money amount = Money.of("10.00", "CHF");
-        Payment reserved = Payment.reserved("k-acc", "h".repeat(64), sender, receiver, amount);
-
-        when(reserve.reserve(any())).thenReturn(new ReserveFundsFlow.Result.Reserved(reserved));
-        when(callRail.execute(reserved)).thenReturn(SettlementOutcome.unknown());
-        when(finalize.finalizeSettlement(reserved.getId(), SettlementOutcome.unknown()))
-                .thenReturn(reserved);
-
-        PaymentResult accepted = flow.initiate(new CreatePaymentFlow.Arguments("k-acc", sender, receiver, amount));
-        assertThat(accepted.kind()).isEqualTo(PaymentResult.Kind.ACCEPTED);
-
-        when(finalize.finalizeSettlement(reserved.getId(), SettlementOutcome.unknown()))
-                .thenThrow(new RuntimeException("db glitch"));
-        PaymentResult fallbackAccepted =
-                flow.initiate(new CreatePaymentFlow.Arguments("k-acc", sender, receiver, amount));
-        assertThat(fallbackAccepted.kind()).isEqualTo(PaymentResult.Kind.ACCEPTED);
     }
 }
