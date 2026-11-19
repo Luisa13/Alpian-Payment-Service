@@ -15,8 +15,14 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.test.context.TestPropertySource;
 
 /** T11: notification consumer deduplication and dead-letter topic routing. */
+@TestPropertySource(
+        properties = {
+            "app.notification.group-id=notification-consumer-it",
+            "spring.kafka.consumer.auto-offset-reset=latest"
+        })
 class NotificationConsumerIT extends PaymentIntegrationTest {
 
     @Autowired

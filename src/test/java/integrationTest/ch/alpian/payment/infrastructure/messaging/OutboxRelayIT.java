@@ -103,6 +103,12 @@ class OutboxRelayIT extends PaymentIntegrationTest {
                 }
                 """.formatted(eventId, Instant.now(), paymentId, paymentId, senderId);
 
+        KafkaTemplate<String, String> failingTemplate = spy(kafkaTemplate);
+        doReturn(CompletableFuture.failedFuture(new RuntimeException("Simulated Kafka outage")))
+                .when(failingTemplate)
+                .send(any(ProducerRecord.class));
+        var failingRelay = new OutboxRelay(jdbc, failingTemplate, new SimpleMeterRegistry(), 1000);
+
         jdbc.sql("""
                         INSERT INTO outbox_events (id, aggregate_id, event_type, payload)
                         VALUES (:id, :agg, 'PAYMENT_COMPLETED', CAST(:payload AS jsonb))
@@ -113,12 +119,6 @@ class OutboxRelayIT extends PaymentIntegrationTest {
                 .update();
 
         try {
-            KafkaTemplate<String, String> failingTemplate = spy(kafkaTemplate);
-            doReturn(CompletableFuture.failedFuture(new RuntimeException("Simulated Kafka outage")))
-                    .when(failingTemplate)
-                    .send(any(ProducerRecord.class));
-
-            var failingRelay = new OutboxRelay(jdbc, failingTemplate, new SimpleMeterRegistry(), 1000);
             failingRelay.relay();
 
             Integer attempts = jdbc.sql("SELECT publish_attempts FROM outbox_events WHERE id = :id")
