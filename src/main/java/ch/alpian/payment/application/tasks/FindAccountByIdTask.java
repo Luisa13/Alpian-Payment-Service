@@ -2,7 +2,7 @@ package ch.alpian.payment.application.tasks;
 
 import ch.alpian.payment.domain.Account;
 import ch.alpian.payment.domain.AccountRepository;
-import ch.alpian.payment.domain.EntityNotFoundException;
+import ch.alpian.payment.domain.exception.EntityNotFoundException;
 import java.util.UUID;
 import org.springframework.stereotype.Component;
 

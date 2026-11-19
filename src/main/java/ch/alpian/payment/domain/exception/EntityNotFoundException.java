@@ -1,4 +1,4 @@
-package ch.alpian.payment.domain;
+package ch.alpian.payment.domain.exception;
 
 public class EntityNotFoundException extends RuntimeException {
 

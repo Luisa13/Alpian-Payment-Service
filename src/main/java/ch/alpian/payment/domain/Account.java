@@ -1,5 +1,6 @@
 package ch.alpian.payment.domain;
 
+import ch.alpian.payment.domain.exception.InsufficientFundsException;
 import java.util.UUID;
 
 /**

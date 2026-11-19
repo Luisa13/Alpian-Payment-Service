@@ -1,4 +1,4 @@
-package ch.alpian.payment.domain;
+package ch.alpian.payment.domain.exception;
 
 import java.util.UUID;
 

@@ -3,6 +3,7 @@ package ch.alpian.payment.domain;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import ch.alpian.payment.domain.exception.InsufficientFundsException;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 

@@ -1,4 +1,4 @@
-package ch.alpian.payment.domain;
+package ch.alpian.payment.domain.exception;
 
 /** Another payment already uses this idempotency key (unique constraint violation). */
 public class DuplicateIdempotencyKeyException extends RuntimeException {

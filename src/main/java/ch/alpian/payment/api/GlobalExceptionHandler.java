@@ -1,9 +1,9 @@
 package ch.alpian.payment.api;
 
-import ch.alpian.payment.domain.CurrencyMismatchException;
-import ch.alpian.payment.domain.EntityNotFoundException;
-import ch.alpian.payment.domain.IdempotencyConflictException;
-import ch.alpian.payment.domain.UnknownAccountException;
+import ch.alpian.payment.domain.exception.CurrencyMismatchException;
+import ch.alpian.payment.domain.exception.EntityNotFoundException;
+import ch.alpian.payment.domain.exception.IdempotencyConflictException;
+import ch.alpian.payment.domain.exception.UnknownAccountException;
 import jakarta.validation.ConstraintViolationException;
 import java.net.URI;
 import java.util.LinkedHashMap;

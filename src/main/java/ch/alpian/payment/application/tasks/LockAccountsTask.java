@@ -2,7 +2,7 @@ package ch.alpian.payment.application.tasks;
 
 import ch.alpian.payment.domain.Account;
 import ch.alpian.payment.domain.AccountRepository;
-import ch.alpian.payment.domain.UnknownAccountException;
+import ch.alpian.payment.domain.exception.UnknownAccountException;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.Map;
