@@ -3,6 +3,7 @@ package ch.alpian.payment.infrastructure.messaging;
 import ch.alpian.payment.application.events.PaymentEvents;
 import com.fasterxml.jackson.core.exc.StreamReadException;
 import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.common.TopicPartition;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
@@ -51,8 +52,8 @@ public class KafkaConfig {
         var backOff = new ExponentialBackOff(500L, 2.0);
         backOff.setMaxAttempts(3);
 
-        // Default destination resolver: <original topic>.DLT, same partition number.
-        var recoverer = new DeadLetterPublishingRecoverer(kafkaTemplate);
+        var recoverer = new DeadLetterPublishingRecoverer(
+                kafkaTemplate, (cr, ex) -> new TopicPartition(PaymentEvents.DLT_TOPIC, cr.partition()));
         var handler = new DefaultErrorHandler(recoverer, backOff);
 
         handler.addNotRetryableExceptions(IllegalArgumentException.class, StreamReadException.class);
