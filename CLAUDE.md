@@ -22,3 +22,4 @@ Alpian Payment Service is a Java 21 / Spring Boot microservice (`ch.alpian.payme
 ## Known Issues
 
 - `NotificationConsumerIT > same_event_delivered_twice_produces_one_notification()` can fail intermittently during full runs due to `spring.kafka.consumer.auto-offset-reset=latest` racing with consumer group startup, then pass on subsequent runs.
+- **Do not add inline defaults to `@Value` / `@Scheduled` / `@KafkaListener` annotations** (e.g. `${app.foo:someDefault}`). All `app.*` defaults live in `application.yml`; inline defaults silently mask missing or mistyped keys instead of failing fast. Hardcoded values that belong in `application.yml` should be extracted there and, where a group of related settings is involved, bound via a `@ConfigurationProperties` record (see `SimulatedRailProperties` and `KafkaProperties` as examples).

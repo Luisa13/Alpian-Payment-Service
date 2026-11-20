@@ -26,8 +26,8 @@ public class TransactionRetry {
     private final long baseBackoffMs;
 
     public TransactionRetry(
-            @Value("${app.retry.max-attempts:4}") int maxAttempts,
-            @Value("${app.retry.base-backoff-ms:20}") long baseBackoffMs) {
+            @Value("${app.retry.max-attempts}") int maxAttempts,
+            @Value("${app.retry.base-backoff-ms}") long baseBackoffMs) {
         this.maxAttempts = maxAttempts;
         this.baseBackoffMs = baseBackoffMs;
     }

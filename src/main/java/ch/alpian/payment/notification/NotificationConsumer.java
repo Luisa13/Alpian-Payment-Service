@@ -47,7 +47,7 @@ class NotificationConsumer {
                 .register(meters);
     }
 
-    @KafkaListener(topics = PaymentEvents.TOPIC, groupId = "${app.notification.group-id:payment-notifications}")
+    @KafkaListener(topics = PaymentEvents.TOPIC, groupId = "${app.notification.group-id}")
     @Transactional
     public void onPaymentEvent(ConsumerRecord<String, String> record) {
         EventEnvelope<PaymentPayload> event = deserialize(record.value());
@@ -66,7 +66,7 @@ class NotificationConsumer {
         log.info("NOTIFICATION to account {}: {}", payload.senderAccountId(), message);
     }
 
-    @KafkaListener(topics = PaymentEvents.DLT_TOPIC, groupId = "${app.notification.group-id:payment-notifications}-dlt")
+    @KafkaListener(topics = PaymentEvents.DLT_TOPIC, groupId = "${app.notification.group-id}-dlt")
     public void onDeadLetter(ConsumerRecord<String, String> record) {
         dltCounter.increment();
         log.error("Message landed in DLT: topic={} key={} offset={}", record.topic(), record.key(), record.offset());

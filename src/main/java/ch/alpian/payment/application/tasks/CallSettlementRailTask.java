@@ -33,7 +33,7 @@ public class CallSettlementRailTask implements Task<Payment, SettlementOutcome> 
     private final Duration timeout;
     private final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
 
-    public CallSettlementRailTask(SettlementRail rail, @Value("${app.rail.timeout:2s}") Duration timeout) {
+    public CallSettlementRailTask(SettlementRail rail, @Value("${app.rail.timeout}") Duration timeout) {
         this.rail = rail;
         this.timeout = timeout;
     }

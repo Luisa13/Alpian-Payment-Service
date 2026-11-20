@@ -4,6 +4,7 @@ import ch.alpian.payment.application.events.PaymentEvents;
 import com.fasterxml.jackson.core.exc.StreamReadException;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.common.TopicPartition;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
@@ -18,23 +19,34 @@ import org.springframework.util.backoff.ExponentialBackOff;
 /**
  * Kafka topics and listener container configuration.
  *
- * <p>Retry policy: exponential backoff 500 ms initial, factor 2, up to 3 retries, then the record
- * goes to {@code payment-notifications.DLT}. Non-retryable exceptions (schema/deserialisation
- * errors) skip retries and go straight to the DLT.
+ * <p>Retry policy: exponential backoff with configurable initial interval, multiplier, and max
+ * attempts (see {@code app.kafka.consumer-retry.*}), then the record goes to {@code
+ * payment-notifications.DLT}. Non-retryable exceptions (schema/deserialisation errors) skip
+ * retries and go straight to the DLT.
  */
 @Configuration
+@EnableConfigurationProperties(KafkaProperties.class)
 public class KafkaConfig {
+
+    private final KafkaProperties properties;
+
+    public KafkaConfig(KafkaProperties properties) {
+        this.properties = properties;
+    }
 
     @Bean
     NewTopic paymentNotificationsTopic() {
-        return TopicBuilder.name(PaymentEvents.TOPIC).partitions(6).replicas(1).build();
+        return TopicBuilder.name(PaymentEvents.TOPIC)
+                .partitions(properties.topics().partitions())
+                .replicas(properties.topics().replicas())
+                .build();
     }
 
     @Bean
     NewTopic paymentNotificationsDlt() {
         return TopicBuilder.name(PaymentEvents.DLT_TOPIC)
-                .partitions(6)
-                .replicas(1)
+                .partitions(properties.topics().partitions())
+                .replicas(properties.topics().replicas())
                 .build();
     }
 
@@ -49,8 +61,9 @@ public class KafkaConfig {
     }
 
     private CommonErrorHandler errorHandler(KafkaTemplate<String, String> kafkaTemplate) {
-        var backOff = new ExponentialBackOff(500L, 2.0);
-        backOff.setMaxAttempts(3);
+        var retry = properties.consumerRetry();
+        var backOff = new ExponentialBackOff(retry.initialIntervalMs(), retry.multiplier());
+        backOff.setMaxAttempts(retry.maxAttempts());
 
         var recoverer = new DeadLetterPublishingRecoverer(
                 kafkaTemplate, (cr, ex) -> new TopicPartition(PaymentEvents.DLT_TOPIC, cr.partition()));
