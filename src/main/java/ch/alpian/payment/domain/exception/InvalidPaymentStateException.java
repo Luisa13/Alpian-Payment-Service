@@ -1,5 +1,6 @@
-package ch.alpian.payment.domain;
+package ch.alpian.payment.domain.exception;
 
+import ch.alpian.payment.domain.PaymentStatus;
 import java.util.UUID;
 
 public class InvalidPaymentStateException extends RuntimeException {

@@ -4,7 +4,6 @@ import static ch.alpian.payment.infrastructure.persistence.JdbcSupport.instant;
 import static ch.alpian.payment.infrastructure.persistence.JdbcSupport.timestamp;
 import static ch.alpian.payment.infrastructure.persistence.JdbcSupport.uuid;
 
-import ch.alpian.payment.domain.DuplicateIdempotencyKeyException;
 import ch.alpian.payment.domain.FailureReason;
 import ch.alpian.payment.domain.Money;
 import ch.alpian.payment.domain.Payment;
@@ -12,6 +11,7 @@ import ch.alpian.payment.domain.PaymentRepository;
 import ch.alpian.payment.domain.PaymentStatus;
 import ch.alpian.payment.domain.Receiver;
 import ch.alpian.payment.domain.ReceiverType;
+import ch.alpian.payment.domain.exception.DuplicateIdempotencyKeyException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Optional;

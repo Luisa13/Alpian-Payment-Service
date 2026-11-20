@@ -7,11 +7,11 @@ import static org.mockito.Mockito.when;
 
 import ch.alpian.payment.application.tasks.CheckIdempotencyTask;
 import ch.alpian.payment.domain.FailureReason;
-import ch.alpian.payment.domain.IdempotencyConflictException;
 import ch.alpian.payment.domain.Money;
 import ch.alpian.payment.domain.Payment;
 import ch.alpian.payment.domain.PaymentRepository;
 import ch.alpian.payment.domain.Receiver;
+import ch.alpian.payment.domain.exception.IdempotencyConflictException;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;

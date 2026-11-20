@@ -1,5 +1,6 @@
 package ch.alpian.payment.domain;
 
+import ch.alpian.payment.domain.exception.InvalidPaymentStateException;
 import java.time.Instant;
 import java.util.UUID;
 

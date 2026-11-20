@@ -1,8 +1,8 @@
 package ch.alpian.payment.application.tasks;
 
-import ch.alpian.payment.domain.IdempotencyConflictException;
 import ch.alpian.payment.domain.Payment;
 import ch.alpian.payment.domain.PaymentRepository;
+import ch.alpian.payment.domain.exception.IdempotencyConflictException;
 import java.util.Optional;
 import org.springframework.stereotype.Component;
 

@@ -1,5 +1,6 @@
-package ch.alpian.payment.domain;
+package ch.alpian.payment.domain.exception;
 
+import ch.alpian.payment.domain.Money;
 import java.util.UUID;
 
 public class InsufficientFundsException extends RuntimeException {

@@ -2,9 +2,9 @@ package ch.alpian.payment.application.tasks;
 
 import ch.alpian.payment.domain.Account;
 import ch.alpian.payment.domain.AccountRepository;
-import ch.alpian.payment.domain.CurrencyMismatchException;
 import ch.alpian.payment.domain.Receiver;
-import ch.alpian.payment.domain.UnknownAccountException;
+import ch.alpian.payment.domain.exception.CurrencyMismatchException;
+import ch.alpian.payment.domain.exception.UnknownAccountException;
 import org.springframework.stereotype.Component;
 
 /** Task: an internal receiver must exist and hold the payment currency. External receivers pass. */

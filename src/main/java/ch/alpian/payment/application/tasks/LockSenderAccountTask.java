@@ -2,8 +2,8 @@ package ch.alpian.payment.application.tasks;
 
 import ch.alpian.payment.domain.Account;
 import ch.alpian.payment.domain.AccountRepository;
-import ch.alpian.payment.domain.CurrencyMismatchException;
-import ch.alpian.payment.domain.UnknownAccountException;
+import ch.alpian.payment.domain.exception.CurrencyMismatchException;
+import ch.alpian.payment.domain.exception.UnknownAccountException;
 import java.util.UUID;
 import org.springframework.stereotype.Component;
 
