@@ -34,6 +34,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.transaction.PlatformTransactionManager;
 
 /** T10: outbox relay publishes one Kafka record per state change and drains backlog after outage. */
 @TestPropertySource(properties = "app.outbox.relay-interval-ms=60000")
@@ -44,6 +45,9 @@ class OutboxRelayIT extends PaymentIntegrationTest {
 
     @Autowired
     KafkaTemplate<String, String> kafkaTemplate;
+
+    @Autowired
+    PlatformTransactionManager txManager;
 
     @Autowired
     OutboxRelay outboxRelay;
@@ -107,7 +111,7 @@ class OutboxRelayIT extends PaymentIntegrationTest {
         doReturn(CompletableFuture.failedFuture(new RuntimeException("Simulated Kafka outage")))
                 .when(failingTemplate)
                 .send(any(ProducerRecord.class));
-        var failingRelay = new OutboxRelay(jdbc, failingTemplate, new SimpleMeterRegistry(), 1000);
+        var failingRelay = new OutboxRelay(jdbc, failingTemplate, new SimpleMeterRegistry(), txManager, 1000, 30000);
 
         jdbc.sql("""
                         INSERT INTO outbox_events (id, aggregate_id, event_type, payload)

@@ -31,7 +31,6 @@ spring:
       retries: 2147483647      # let Kafka exhaust delivery.timeout.ms; don't cap retries
       properties:
         enable.idempotence: "true"
-        # Short bounds: the outbox relay waits for the ack inside a transaction, and it retries itself.
         delivery.timeout.ms: "10000"
         request.timeout.ms: "5000"
         max.block.ms: "5000"
@@ -56,8 +55,9 @@ server:
 # ─── Application settings ────────────────────────────────────────────────────
 app:
   outbox:
-    relay-interval-ms: 500       # outbox relay poll interval
-    ack-timeout-ms: 15000        # how long the relay waits for a Kafka ack per record
+    relay-interval-ms: 500        # outbox relay poll interval
+    ack-timeout-ms: 15000         # how long the relay waits for a Kafka ack per record
+    claim-ttl-ms: 30000           # rows claimed but not published within this window are reclaimed (crash recovery)
   notification:
     group-id: payment-notifications
   retry:                         # whole-transaction retry on deadlock / lock timeout

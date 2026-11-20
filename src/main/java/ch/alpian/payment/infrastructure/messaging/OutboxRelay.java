@@ -4,6 +4,7 @@ import ch.alpian.payment.application.events.PaymentEvents;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.nio.charset.StandardCharsets;
+import java.sql.Timestamp;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
@@ -18,17 +19,20 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * Transactional outbox relay.
  *
- * <p>Every {@code app.outbox.relay-interval-ms} it locks a batch of up to 100
- * unpublished rows with {@code FOR UPDATE SKIP LOCKED}, so several instances never take the same
- * rows. Each row is sent with key = payment id and marked published only after Kafka acked it
- * ({@code acks=all}, idempotent producer). On the first failure the row's attempt counter and error
- * are recorded and the batch stops, which keeps events in order; the backlog drains when Kafka is
- * back. A crash between ack and commit can send a record twice; the consumer dedupes on event id.
+ * <p>Every {@code app.outbox.relay-interval-ms} it claims a batch of up to 100 unpublished rows
+ * with {@code FOR UPDATE SKIP LOCKED} in a short TX1, releases the row lock, then sends each
+ * record to Kafka outside any transaction. After a successful ack, TX2 marks the row published. On
+ * failure the row's attempt counter and error are recorded and {@code claimed_at} is cleared so the
+ * next relay cycle can retry immediately. A row that is claimed but never published (crash between
+ * TX1 and TX2) is reclaimed after {@code app.outbox.claim-ttl-ms}. The Kafka key is {@code
+ * payment_id}, guaranteeing partition affinity. A crash after ack but before TX2 can send a record
+ * twice; the consumer dedupes on event id.
  */
 @Component
 class OutboxRelay {
@@ -39,16 +43,22 @@ class OutboxRelay {
 
     private final JdbcClient jdbc;
     private final KafkaTemplate<String, String> kafkaTemplate;
+    private final TransactionTemplate txTemplate;
     private final long ackTimeoutMs;
+    private final long claimTtlMs;
 
     OutboxRelay(
             JdbcClient jdbc,
             KafkaTemplate<String, String> kafkaTemplate,
             MeterRegistry meters,
-            @Value("${app.outbox.ack-timeout-ms}") long ackTimeoutMs) {
+            PlatformTransactionManager txManager,
+            @Value("${app.outbox.ack-timeout-ms}") long ackTimeoutMs,
+            @Value("${app.outbox.claim-ttl-ms}") long claimTtlMs) {
         this.jdbc = jdbc;
         this.kafkaTemplate = kafkaTemplate;
+        this.txTemplate = new TransactionTemplate(txManager);
         this.ackTimeoutMs = ackTimeoutMs;
+        this.claimTtlMs = claimTtlMs;
 
         Gauge.builder("outbox.backlog.events", this, OutboxRelay::backlog)
                 .description("Number of unpublished outbox events waiting for Kafka")
@@ -56,16 +66,37 @@ class OutboxRelay {
     }
 
     @Scheduled(fixedDelayString = "${app.outbox.relay-interval-ms}")
-    @Transactional
     public void relay() {
+        List<OutboxRow> batch = txTemplate.execute(status -> fetchAndClaim());
+        if (batch == null || batch.isEmpty()) return;
+
+        for (OutboxRow row : batch) {
+            try {
+                send(row);
+                txTemplate.executeWithoutResult(status -> markPublished(row));
+            } catch (Exception e) {
+                if (e instanceof InterruptedException) {
+                    Thread.currentThread().interrupt();
+                }
+                txTemplate.executeWithoutResult(status -> markFailed(row, e));
+                log.warn("Outbox event {} not published, will retry: {}", row.id(), e.toString());
+                return;
+            }
+        }
+    }
+
+    private List<OutboxRow> fetchAndClaim() {
+        Timestamp claimCutoff = new Timestamp(System.currentTimeMillis() - claimTtlMs);
         List<OutboxRow> batch = jdbc.sql("""
                         SELECT id, aggregate_id, event_type, payload::text AS payload
                         FROM outbox_events
                         WHERE published_at IS NULL
+                          AND (claimed_at IS NULL OR claimed_at < :claimCutoff)
                         ORDER BY created_at
                         LIMIT :limit
                         FOR UPDATE SKIP LOCKED
                         """)
+                .param("claimCutoff", claimCutoff)
                 .param("limit", BATCH_SIZE)
                 .query((rs, n) -> new OutboxRow(
                         rs.getObject("id", UUID.class),
@@ -74,19 +105,13 @@ class OutboxRelay {
                         rs.getString("payload")))
                 .list();
 
-        for (OutboxRow row : batch) {
-            try {
-                send(row);
-                markPublished(row);
-            } catch (Exception e) {
-                if (e instanceof InterruptedException) {
-                    Thread.currentThread().interrupt();
-                }
-                markFailed(row, e);
-                log.warn("Outbox event {} not published, will retry: {}", row.id(), e.toString());
-                return;
-            }
+        if (!batch.isEmpty()) {
+            List<UUID> ids = batch.stream().map(OutboxRow::id).toList();
+            jdbc.sql("UPDATE outbox_events SET claimed_at = now() WHERE id IN (:ids)")
+                    .param("ids", ids)
+                    .update();
         }
+        return batch;
     }
 
     private void send(OutboxRow row) throws InterruptedException, ExecutionException, TimeoutException {
@@ -108,7 +133,9 @@ class OutboxRelay {
         String message = String.valueOf(error);
         jdbc.sql("""
                         UPDATE outbox_events
-                        SET publish_attempts = publish_attempts + 1, last_error = :error
+                        SET publish_attempts = publish_attempts + 1,
+                            last_error = :error,
+                            claimed_at = NULL
                         WHERE id = :id
                         """)
                 .param("error", message.substring(0, Math.min(message.length(), MAX_ERROR_LENGTH)))
