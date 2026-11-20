@@ -69,6 +69,14 @@ app:
       delay: 100ms
       rejection-rate: 0.05
       timeout-rate: 0.05
+  kafka:
+    topics:
+      partitions: 6
+      replicas: 1
+    consumer-retry:              # DLT error-handler backoff (exponential)
+      initial-interval-ms: 500
+      multiplier: 2.0
+      max-attempts: 3
 
 # ─── Actuator / Observability ────────────────────────────────────────────────
 management:

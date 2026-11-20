@@ -23,7 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * Transactional outbox relay.
  *
- * <p>Every {@code app.outbox.relay-interval-ms} (default 500) it locks a batch of up to 100
+ * <p>Every {@code app.outbox.relay-interval-ms} it locks a batch of up to 100
  * unpublished rows with {@code FOR UPDATE SKIP LOCKED}, so several instances never take the same
  * rows. Each row is sent with key = payment id and marked published only after Kafka acked it
  * ({@code acks=all}, idempotent producer). On the first failure the row's attempt counter and error
@@ -45,7 +45,7 @@ class OutboxRelay {
             JdbcClient jdbc,
             KafkaTemplate<String, String> kafkaTemplate,
             MeterRegistry meters,
-            @Value("${app.outbox.ack-timeout-ms:15000}") long ackTimeoutMs) {
+            @Value("${app.outbox.ack-timeout-ms}") long ackTimeoutMs) {
         this.jdbc = jdbc;
         this.kafkaTemplate = kafkaTemplate;
         this.ackTimeoutMs = ackTimeoutMs;
@@ -55,7 +55,7 @@ class OutboxRelay {
                 .register(meters);
     }
 
-    @Scheduled(fixedDelayString = "${app.outbox.relay-interval-ms:500}")
+    @Scheduled(fixedDelayString = "${app.outbox.relay-interval-ms}")
     @Transactional
     public void relay() {
         List<OutboxRow> batch = jdbc.sql("""
