@@ -29,8 +29,10 @@ import org.springframework.transaction.support.TransactionTemplate;
  * with {@code FOR UPDATE SKIP LOCKED} in a short TX1, releases the row lock, then sends each
  * record to Kafka outside any transaction. After a successful ack, TX2 marks the row published. On
  * failure the row's attempt counter and error are recorded and {@code claimed_at} is cleared so the
- * next relay cycle can retry immediately. A row that is claimed but never published (crash between
- * TX1 and TX2) is reclaimed after {@code app.outbox.claim-ttl-ms}. The Kafka key is {@code
+ * next relay cycle can retry immediately. After {@code MAX_PUBLISH_ATTEMPTS} failures the row is
+ * dead-lettered ({@code dead_lettered_at} is set) and skipped by all future relay cycles. A row
+ * that is claimed but never published (crash between TX1 and TX2) is reclaimed after {@code
+ * app.outbox.claim-ttl-ms}. The Kafka key is {@code
  * payment_id}, guaranteeing partition affinity. A crash after ack but before TX2 can send a record
  * twice; the consumer dedupes on event id.
  */
@@ -40,6 +42,7 @@ class OutboxRelay {
     private static final Logger log = LoggerFactory.getLogger(OutboxRelay.class);
     private static final int BATCH_SIZE = 100;
     private static final int MAX_ERROR_LENGTH = 500;
+    private static final int MAX_PUBLISH_ATTEMPTS = 5;
 
     private final JdbcClient jdbc;
     private final KafkaTemplate<String, String> kafkaTemplate;
@@ -79,7 +82,11 @@ class OutboxRelay {
                     Thread.currentThread().interrupt();
                 }
                 txTemplate.executeWithoutResult(status -> markFailed(row, e));
-                log.warn("Outbox event {} not published, will retry: {}", row.id(), e.toString());
+                log.warn(
+                        "Outbox event {} not published (attempt recorded, dead-lettered after {}): {}",
+                        row.id(),
+                        MAX_PUBLISH_ATTEMPTS,
+                        e.toString());
                 return;
             }
         }
@@ -91,6 +98,7 @@ class OutboxRelay {
                         SELECT id, aggregate_id, event_type, payload::text AS payload
                         FROM outbox_events
                         WHERE published_at IS NULL
+                          AND dead_lettered_at IS NULL
                           AND (claimed_at IS NULL OR claimed_at < :claimCutoff)
                         ORDER BY created_at
                         LIMIT :limit
@@ -135,10 +143,15 @@ class OutboxRelay {
                         UPDATE outbox_events
                         SET publish_attempts = publish_attempts + 1,
                             last_error = :error,
-                            claimed_at = NULL
+                            claimed_at = NULL,
+                            dead_lettered_at = CASE
+                                WHEN publish_attempts + 1 >= :maxAttempts THEN now()
+                                ELSE NULL
+                            END
                         WHERE id = :id
                         """)
                 .param("error", message.substring(0, Math.min(message.length(), MAX_ERROR_LENGTH)))
+                .param("maxAttempts", MAX_PUBLISH_ATTEMPTS)
                 .param("id", row.id())
                 .update();
     }
