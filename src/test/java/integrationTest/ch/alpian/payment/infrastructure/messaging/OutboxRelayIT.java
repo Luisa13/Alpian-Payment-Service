@@ -26,6 +26,7 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -51,6 +52,12 @@ class OutboxRelayIT extends PaymentIntegrationTest {
 
     @Autowired
     OutboxRelay outboxRelay;
+
+    @Value("${app.outbox.ack-timeout-ms}")
+    long ackTimeoutMs;
+
+    @Value("${app.outbox.claim-ttl-ms}")
+    long claimTtlMs;
 
     @Test
     void each_state_change_produces_one_kafka_record_keyed_by_payment_id() {
@@ -111,42 +118,66 @@ class OutboxRelayIT extends PaymentIntegrationTest {
         doReturn(CompletableFuture.failedFuture(new RuntimeException("Simulated Kafka outage")))
                 .when(failingTemplate)
                 .send(any(ProducerRecord.class));
-        var failingRelay = new OutboxRelay(jdbc, failingTemplate, new SimpleMeterRegistry(), txManager, 1000, 30000);
+        var failingRelay =
+                new OutboxRelay(jdbc, failingTemplate, new SimpleMeterRegistry(), txManager, ackTimeoutMs, claimTtlMs);
 
-        jdbc.sql("""
-                        INSERT INTO outbox_events (id, aggregate_id, event_type, payload)
-                        VALUES (:id, :agg, 'PAYMENT_COMPLETED', CAST(:payload AS jsonb))
-                        """)
-                .param("id", eventId)
-                .param("agg", paymentId)
-                .param("payload", envelope)
-                .update();
+        try (var consumer = createConsumer()) {
+            consumer.subscribe(List.of(PaymentEvents.TOPIC));
+            consumer.poll(Duration.ofMillis(500));
 
-        try {
-            failingRelay.relay();
-
-            Integer attempts = jdbc.sql("SELECT publish_attempts FROM outbox_events WHERE id = :id")
+            jdbc.sql("""
+                            INSERT INTO outbox_events (id, aggregate_id, event_type, payload)
+                            VALUES (:id, :agg, 'PAYMENT_COMPLETED', CAST(:payload AS jsonb))
+                            """)
                     .param("id", eventId)
-                    .query(Integer.class)
-                    .single();
-            String lastError = jdbc.sql("SELECT last_error FROM outbox_events WHERE id = :id")
-                    .param("id", eventId)
-                    .query(String.class)
-                    .single();
-            assertThat(attempts).isEqualTo(1);
-            assertThat(lastError).contains("Simulated Kafka outage");
-
-            outboxRelay.relay();
-
-            long unpublished = jdbc.sql("SELECT COUNT(*) FROM outbox_events WHERE id = :id AND published_at IS NULL")
-                    .param("id", eventId)
-                    .query(Long.class)
-                    .single();
-            assertThat(unpublished).isZero();
-        } finally {
-            jdbc.sql("DELETE FROM outbox_events WHERE id = :id")
-                    .param("id", eventId)
+                    .param("agg", paymentId)
+                    .param("payload", envelope)
                     .update();
+
+            try {
+                failingRelay.relay();
+
+                Integer attempts = jdbc.sql("SELECT publish_attempts FROM outbox_events WHERE id = :id")
+                        .param("id", eventId)
+                        .query(Integer.class)
+                        .single();
+                String lastError = jdbc.sql("SELECT last_error FROM outbox_events WHERE id = :id")
+                        .param("id", eventId)
+                        .query(String.class)
+                        .single();
+                assertThat(attempts).isEqualTo(1);
+                assertThat(lastError).contains("Simulated Kafka outage");
+
+                outboxRelay.relay();
+
+                long unpublished = jdbc.sql(
+                                "SELECT COUNT(*) FROM outbox_events WHERE id = :id AND published_at IS NULL")
+                        .param("id", eventId)
+                        .query(Long.class)
+                        .single();
+                assertThat(unpublished).isZero();
+
+                List<ConsumerRecord<String, String>> published = new ArrayList<>();
+                await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
+                    ConsumerRecords<String, String> polled = consumer.poll(Duration.ofMillis(200));
+                    for (ConsumerRecord<String, String> r : polled) {
+                        if (paymentId.toString().equals(r.key())) {
+                            published.add(r);
+                        }
+                    }
+                    assertThat(published).hasSize(1);
+                });
+                assertThat(new String(published
+                                .get(0)
+                                .headers()
+                                .lastHeader("eventType")
+                                .value()))
+                        .isEqualTo("PAYMENT_COMPLETED");
+            } finally {
+                jdbc.sql("DELETE FROM outbox_events WHERE id = :id")
+                        .param("id", eventId)
+                        .update();
+            }
         }
     }
 
