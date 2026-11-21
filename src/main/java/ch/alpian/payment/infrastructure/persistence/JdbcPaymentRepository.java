@@ -97,7 +97,7 @@ class JdbcPaymentRepository implements PaymentRepository {
         int updated = jdbc.sql("""
                         UPDATE payments
                         SET status = :to, failure_reason = :failureReason, rail_reference = :railReference,
-                            finalized_at = :finalizedAt, version = version + 1, updated_at = now()
+                            finalized_at = :finalizedAt, version = version + 1, updated_at = :updatedAt
                         WHERE id = :id AND status = :from
                         """)
                 .param("to", p.getStatus().name())
@@ -108,6 +108,7 @@ class JdbcPaymentRepository implements PaymentRepository {
                                 : p.getFailureReason().name())
                 .param("railReference", p.getRailReference())
                 .param("finalizedAt", timestamp(p.getFinalizedAt()))
+                .param("updatedAt", timestamp(p.getUpdatedAt()))
                 .param("id", p.getId())
                 .param("from", from.name())
                 .update();
