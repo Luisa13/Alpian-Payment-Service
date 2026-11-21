@@ -1,0 +1,59 @@
+site_name: Alpian Payment Service
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.expand
+    - navigation.indexes
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+
+nav:
+  - Home: index.md
+  - Architecture: architecture.md
+  - API: api.md
+  - Database: database.md
+  - Messaging: messaging.md
+  - Flows: flows.md
+  - Failure Modes: failure-modes.md
+  - Testing: testing.md
+  - Running Locally: running-locally.md
+  - Diagrams:
+      - C4 Context: diagrams/c4-context.md
+      - C4 Container: diagrams/c4-container.md
+      - Transfer Sequence: diagrams/transfer-sequence.md
+  - Architecture Decision Records:
+      - adr/index.md
+      - "ADR-0001: Spring Boot 3.5.x": adr/0001-spring-boot-version.md
+      - "ADR-0002: Data Access Layer": adr/0002-data-access-layer.md
+      - "ADR-0003: Outbox vs CDC": adr/0003-outbox-vs-cdc.md
+      - "ADR-0004: Event Schema": adr/0004-event-schema.md
+      - "ADR-0005: Out of Scope Features": adr/0005-out-of-scope-features.md
+      - "ADR-0006: Light Hexagonal Architecture": adr/0006-light-hexagonal-architecture-flows-and-tasks.md
+      - "ADR-0007: RFC 7807 Error Handling": adr/0007-rfc-7807-problem-detail-error-handling.md
+      - "ADR-0008: Mockito Retry Tests": adr/0008-mockito-doanswer-dothrow-for-retry-tests.md
+      - ADR Template: adr/0000-adr-template.md
+  - Design Doc Template: design-doc-template.md
