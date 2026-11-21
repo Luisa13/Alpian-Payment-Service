@@ -18,6 +18,9 @@ spring:
       connection-timeout: 30000
 
 app:
+  kafka:
+    topics:
+      replicas: 1
   outbox:
     relay-interval-ms: 100
   rail:

@@ -72,7 +72,7 @@ app:
   kafka:
     topics:
       partitions: 6
-      replicas: 1
+      replicas: 3
     consumer-retry:              # DLT error-handler backoff (exponential)
       initial-interval-ms: 500
       multiplier: 2.0

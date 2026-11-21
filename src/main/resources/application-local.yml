@@ -13,6 +13,11 @@ spring:
   kafka:
     bootstrap-servers: localhost:9092
 
+app:
+  kafka:
+    topics:
+      replicas: 1
+
 logging:
   level:
     root: INFO
