@@ -1,4 +1,4 @@
-.PHONY: up down build test test-parallel run smoke format help
+.PHONY: up down build test test-parallel run smoke smoke-outbox smoke-outbox-dlq smoke-burst format help
 
 COMPOSE = docker compose
 GRADLEW = ./gradlew
@@ -34,6 +34,15 @@ run: ## Build the app image (Jib) and start it alongside the infra stack
 
 smoke: ## Run smoke tests against the locally running app (requires `make run`)
 	@bash scripts/smoke.sh
+
+smoke-outbox: ## Run outbox relay happy-path smoke test (requires running stack + app)
+	@bash scripts/smoke-outbox.sh
+
+smoke-outbox-dlq: ## Run outbox dead-letter smoke test (stops/starts Kafka)
+	@bash scripts/smoke-outbox-dlq.sh
+
+smoke-burst: ## Run concurrent burst smoke test (BURST_SIZE=10 parallel payments)
+	@bash scripts/smoke-burst.sh
 
 format: ## Auto-format all Java sources with palantir-java-format
 	$(GRADLEW) spotlessApply
