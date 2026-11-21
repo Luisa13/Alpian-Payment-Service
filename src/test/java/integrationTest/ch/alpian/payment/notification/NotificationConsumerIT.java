@@ -12,9 +12,13 @@ import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.kafka.config.KafkaListenerEndpointRegistry;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.test.utils.ContainerTestUtils;
 import org.springframework.test.context.TestPropertySource;
 
 /** T11: notification consumer deduplication and dead-letter topic routing. */
@@ -26,6 +30,9 @@ import org.springframework.test.context.TestPropertySource;
 class NotificationConsumerIT extends PaymentIntegrationTest {
 
     @Autowired
+    KafkaListenerEndpointRegistry registry;
+
+    @Autowired
     KafkaTemplate<String, String> kafkaTemplate;
 
     @Autowired
@@ -33,6 +40,18 @@ class NotificationConsumerIT extends PaymentIntegrationTest {
 
     @Autowired
     MeterRegistry meters;
+
+    @Value("${app.kafka.topics.partitions}")
+    int partitions;
+
+    @BeforeEach
+    void waitForConsumerReady() throws InterruptedException {
+        var container = registry.getAllListenerContainers().stream()
+                .filter(c -> "notification-consumer-it".equals(c.getGroupId()))
+                .findFirst()
+                .orElseThrow();
+        ContainerTestUtils.waitForAssignment(container, partitions);
+    }
 
     @Test
     void same_event_delivered_twice_produces_one_notification() throws Exception {
