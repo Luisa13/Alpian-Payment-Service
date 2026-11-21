@@ -69,6 +69,10 @@ app:
       delay: 100ms
       rejection-rate: 0.05
       timeout-rate: 0.05
+  recovery:                      # stale-payment recovery job
+    interval-ms: 10000           # run every 10 s
+    stale-after: 30s             # well above the rail timeout (app.rail.timeout)
+    max-attempts: 10             # payments retried this many times without a definitive answer are left for manual review
   kafka:
     topics:
       partitions: 6

@@ -1,5 +1,7 @@
 package ch.alpian.payment.domain;
 
+import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -27,4 +29,11 @@ public interface PaymentRepository {
 
     /** Counts one settlement attempt that ended UNKNOWN. Only touches a payment still RESERVED. */
     void recordSettlementAttempt(UUID paymentId);
+
+    /**
+     * Returns up to {@code limit} payments that are still {@code RESERVED}, were reserved before
+     * {@code reservedBefore}, and have fewer than {@code maxAttempts} settlement attempts recorded.
+     * Ordered oldest-first so the most overdue payments are processed first.
+     */
+    List<Payment> findStaleReserved(Instant reservedBefore, int maxAttempts, int limit);
 }
