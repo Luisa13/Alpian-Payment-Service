@@ -40,19 +40,32 @@ public class CallSettlementRailTask implements Task<Payment, SettlementOutcome> 
 
     @Override
     public SettlementOutcome execute(Payment payment) {
-        Future<SettlementOutcome> call = executor.submit(() -> rail.settle(SettlementRequest.from(payment)));
+        return callWithTimeout(payment, () -> rail.settle(SettlementRequest.from(payment)), "Rail call");
+    }
+
+    /**
+     * Queries the rail for the outcome of a previously submitted payment without re-submitting it.
+     * Returns {@code UNKNOWN} on timeout or error, identical to {@link #execute}.
+     */
+    public SettlementOutcome getStatus(Payment payment) {
+        return callWithTimeout(payment, () -> rail.getStatus(SettlementRequest.from(payment)), "Rail status check");
+    }
+
+    private SettlementOutcome callWithTimeout(
+            Payment payment, java.util.concurrent.Callable<SettlementOutcome> call, String label) {
+        Future<SettlementOutcome> future = executor.submit(call);
         try {
-            return call.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
+            return future.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
         } catch (TimeoutException e) {
-            call.cancel(true);
-            log.warn("Rail call timed out after {} for payment {}", timeout, payment.getId());
+            future.cancel(true);
+            log.warn("{} timed out after {} for payment {}", label, timeout, payment.getId());
             return SettlementOutcome.unknown();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            call.cancel(true);
+            future.cancel(true);
             return SettlementOutcome.unknown();
         } catch (ExecutionException e) {
-            log.warn("Rail call failed for payment {}", payment.getId(), e.getCause());
+            log.warn("{} failed for payment {}", label, payment.getId(), e.getCause());
             return SettlementOutcome.unknown();
         }
     }

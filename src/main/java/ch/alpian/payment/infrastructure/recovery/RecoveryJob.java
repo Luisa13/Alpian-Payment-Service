@@ -87,7 +87,13 @@ class RecoveryJob {
     }
 
     private void retryOne(Payment payment) {
-        SettlementOutcome outcome = callRail.execute(payment);
+        // Check whether the rail already processed the payment before re-submitting.
+        // If the initial settle() timed out the rail may have recorded a SETTLED/REJECTED outcome
+        // that we never saw. Re-submitting in that case would be a semantic duplicate.
+        SettlementOutcome status = callRail.getStatus(payment);
+        SettlementOutcome outcome = status.status() == SettlementOutcome.Status.UNKNOWN
+                ? callRail.execute(payment) // rail has no record; re-submit
+                : status; // rail has a definitive answer; use it directly
         try {
             retry.execute(() -> finalizeSettlement.finalizeSettlement(payment.getId(), outcome));
         } catch (RuntimeException e) {
