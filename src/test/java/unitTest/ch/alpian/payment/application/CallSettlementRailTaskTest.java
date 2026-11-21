@@ -59,4 +59,34 @@ class CallSettlementRailTaskTest {
         var task = new CallSettlementRailTask(rail, Duration.ofMillis(50));
         assertThat(task.execute(PAYMENT)).isEqualTo(SettlementOutcome.unknown());
     }
+
+    @Test
+    void get_status_returns_stored_outcome_from_rail() {
+        SettlementRail rail = mock(SettlementRail.class);
+        when(rail.getStatus(any())).thenReturn(SettlementOutcome.settled("STORED-REF"));
+
+        var task = new CallSettlementRailTask(rail, Duration.ofSeconds(1));
+        assertThat(task.getStatus(PAYMENT)).isEqualTo(SettlementOutcome.settled("STORED-REF"));
+    }
+
+    @Test
+    void get_status_returns_unknown_on_timeout() {
+        SettlementRail rail = mock(SettlementRail.class);
+        when(rail.getStatus(any())).thenAnswer(inv -> {
+            Thread.sleep(500);
+            return SettlementOutcome.settled("STORED-REF");
+        });
+
+        var task = new CallSettlementRailTask(rail, Duration.ofMillis(50));
+        assertThat(task.getStatus(PAYMENT)).isEqualTo(SettlementOutcome.unknown());
+    }
+
+    @Test
+    void get_status_returns_unknown_on_exception() {
+        SettlementRail rail = mock(SettlementRail.class);
+        when(rail.getStatus(any())).thenThrow(new IllegalStateException("rail unreachable"));
+
+        var task = new CallSettlementRailTask(rail, Duration.ofSeconds(1));
+        assertThat(task.getStatus(PAYMENT)).isEqualTo(SettlementOutcome.unknown());
+    }
 }

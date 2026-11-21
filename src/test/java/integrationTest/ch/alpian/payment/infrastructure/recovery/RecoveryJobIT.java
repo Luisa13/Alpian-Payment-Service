@@ -2,6 +2,7 @@ package ch.alpian.payment.infrastructure.recovery;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -28,6 +29,13 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
  *
  * <p>The scheduler is disabled (interval set to 10 minutes) so tests call {@code recover()}
  * directly and avoid timing races.
+ *
+ * <p>Recovery checks the rail status before re-submitting:
+ *
+ * <ul>
+ *   <li>If the rail has a stored outcome (SETTLED/REJECTED), it is used directly — no re-submit.
+ *   <li>If the rail has no record (UNKNOWN), the payment is re-submitted via {@code settle()}.
+ * </ul>
  */
 @TestPropertySource(
         properties = {
@@ -48,11 +56,12 @@ class RecoveryJobIT extends PaymentIntegrationTest {
     SettlementRail rail;
 
     @Test
-    void stale_reserved_payment_is_completed_by_recovery() {
-        // inline call → UNKNOWN; recovery call → SETTLED
+    void stale_reserved_payment_is_completed_by_recovery_via_resubmit() {
+        // inline settle() → UNKNOWN; getStatus() → UNKNOWN (rail never got it); re-submit → SETTLED
         when(rail.settle(any()))
                 .thenReturn(SettlementOutcome.unknown())
                 .thenReturn(SettlementOutcome.settled("RECOVERY-REF-001"));
+        when(rail.getStatus(any())).thenReturn(SettlementOutcome.unknown());
 
         UUID sender = newAccount("100.00");
         UUID receiver = newAccount("0.00");
@@ -62,21 +71,47 @@ class RecoveryJobIT extends PaymentIntegrationTest {
         UUID paymentId = response.getBody().getId();
 
         backdateReservedAt(paymentId, 60);
-
         recoveryJob.recover();
 
-        String status = paymentStatus(paymentId);
-        assertThat(status).isEqualTo("COMPLETED");
+        assertThat(paymentStatus(paymentId)).isEqualTo("COMPLETED");
         assertThat(available(sender)).isEqualByComparingTo("60.00");
         assertThat(balance(sender)).isEqualByComparingTo("60.00");
         assertThat(balance(receiver)).isEqualByComparingTo("40.00");
         assertThat(outboxEvents(paymentId, "PAYMENT_COMPLETED")).isEqualTo(1);
+        // settle() called twice: once inline, once by recovery re-submit
+        verify(rail, times(2)).settle(any());
     }
 
     @Test
-    void stale_reserved_payment_stays_failed_when_rail_rejects_on_recovery() {
-        // inline call → UNKNOWN; recovery call → REJECTED
+    void recovery_uses_stored_rail_status_without_resubmitting() {
+        // inline settle() → UNKNOWN (timed out); but rail actually processed it
+        // getStatus() → SETTLED; recovery must NOT call settle() again
+        when(rail.settle(any())).thenReturn(SettlementOutcome.unknown());
+        when(rail.getStatus(any())).thenReturn(SettlementOutcome.settled("STORED-REF-001"));
+
+        UUID sender = newAccount("100.00");
+        UUID receiver = newAccount("0.00");
+
+        ResponseEntity<PaymentResponse> response = postPayment(sender, receiver, "40.00");
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+        UUID paymentId = response.getBody().getId();
+
+        backdateReservedAt(paymentId, 60);
+        recoveryJob.recover();
+
+        assertThat(paymentStatus(paymentId)).isEqualTo("COMPLETED");
+        assertThat(balance(receiver)).isEqualByComparingTo("40.00");
+        assertThat(outboxEvents(paymentId, "PAYMENT_COMPLETED")).isEqualTo(1);
+        // settle() called only once (the initial inline call); recovery used getStatus() result
+        verify(rail, times(1)).settle(any());
+        verify(rail, times(1)).getStatus(any());
+    }
+
+    @Test
+    void stale_reserved_payment_is_failed_when_rail_rejects_on_resubmit() {
+        // inline settle() → UNKNOWN; getStatus() → UNKNOWN; re-submit → REJECTED
         when(rail.settle(any())).thenReturn(SettlementOutcome.unknown()).thenReturn(SettlementOutcome.rejected());
+        when(rail.getStatus(any())).thenReturn(SettlementOutcome.unknown());
 
         UUID sender = newAccount("100.00");
         UUID receiver = newAccount("0.00");
@@ -85,7 +120,6 @@ class RecoveryJobIT extends PaymentIntegrationTest {
         UUID paymentId = response.getBody().getId();
 
         backdateReservedAt(paymentId, 60);
-
         recoveryJob.recover();
 
         assertThat(paymentStatus(paymentId)).isEqualTo("FAILED");
@@ -96,7 +130,6 @@ class RecoveryJobIT extends PaymentIntegrationTest {
 
     @Test
     void payment_with_exhausted_attempts_is_not_retried() {
-        // rail returns UNKNOWN on the initial inline call
         when(rail.settle(any())).thenReturn(SettlementOutcome.unknown());
 
         UUID sender = newAccount("100.00");
@@ -113,8 +146,8 @@ class RecoveryJobIT extends PaymentIntegrationTest {
 
         recoveryJob.recover();
 
-        // recovery must not call the rail again
-        verify(rail, times(1)).settle(any());
+        verify(rail, times(1)).settle(any()); // only the initial inline call
+        verify(rail, never()).getStatus(any());
         assertThat(paymentStatus(paymentId)).isEqualTo("RESERVED");
     }
 
@@ -126,13 +159,12 @@ class RecoveryJobIT extends PaymentIntegrationTest {
         UUID receiver = newAccount("0.00");
 
         postPayment(sender, receiver, "40.00");
-
         // payment is fresh (reserved_at = now); do NOT backdate
 
         recoveryJob.recover();
 
-        // rail was called once by the inline flow; recovery must not add a second call
-        verify(rail, times(1)).settle(any());
+        verify(rail, times(1)).settle(any()); // only the initial inline call
+        verify(rail, never()).getStatus(any());
     }
 
     // ── helpers ───────────────────────────────────────────────────────────────
