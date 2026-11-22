@@ -23,6 +23,8 @@ tags:
     description: Payment operations
   - name: Accounts
     description: Account read access
+  - name: Internal
+    description: Internal callbacks from settlement rails
 
 paths:
 
@@ -142,6 +144,55 @@ paths:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
 
+  /internal/rail/callbacks:
+    post:
+      tags: [Internal]
+      summary: Receive settlement callback from an external rail
+      operationId: handleRailCallback
+      parameters:
+        - name: X-Rail-Signature
+          in: header
+          required: true
+          description: HMAC-SHA256 hex signature of the callback payload
+          schema:
+            type: string
+        - $ref: "#/components/parameters/CorrelationId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RailCallbackRequest"
+      responses:
+        "200":
+          description: Idempotent replay — callback already applied
+        "204":
+          description: Callback applied
+        "400":
+          description: Validation error
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "401":
+          description: Invalid or missing HMAC signature
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "404":
+          description: Payment not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "409":
+          description: Callback conflicts with an already finalized payment outcome
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+
 components:
 
   parameters:
@@ -205,7 +256,7 @@ components:
           example: "CHF"
         status:
           type: string
-          enum: [REJECTED, RESERVED, COMPLETED, FAILED]
+          enum: [REJECTED, RESERVED, SUBMITTED, COMPLETED, FAILED]
         failureReason:
           type: string
           nullable: true
@@ -229,6 +280,23 @@ components:
         updatedAt:
           type: string
           format: date-time
+          nullable: true
+
+    RailCallbackRequest:
+      type: object
+      required: [eventId, paymentId, outcome]
+      properties:
+        eventId:
+          type: string
+          format: uuid
+        paymentId:
+          type: string
+          format: uuid
+        outcome:
+          type: string
+          enum: [SETTLED, REJECTED]
+        railReference:
+          type: string
           nullable: true
 
     AccountResponse:
@@ -285,6 +353,8 @@ components:
             - INSUFFICIENT_FUNDS
             - IDEMPOTENCY_KEY_REUSED
             - CONCURRENT_MODIFICATION
+            - INVALID_SIGNATURE
+            - CALLBACK_CONFLICT
             - INTERNAL_ERROR
         paymentId:
           type: string

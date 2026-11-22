@@ -16,6 +16,7 @@ import ch.alpian.payment.domain.SettlementOutcome;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -76,13 +77,14 @@ public class FinalizeSettlementFlow {
     @Transactional
     public Payment finalizeSettlement(UUID paymentId, SettlementOutcome outcome) {
         Payment payment = findPayment.execute(paymentId);
-        if (payment.getStatus() != PaymentStatus.RESERVED) {
+        if (payment.getStatus() != PaymentStatus.RESERVED && payment.getStatus() != PaymentStatus.SUBMITTED) {
             return alreadyMoved(payment);
         }
         return switch (outcome.status()) {
             case SETTLED -> complete(payment, outcome.reference());
             case REJECTED -> fail(payment);
-            case UNKNOWN -> {
+            case ACCEPTED -> payment;
+            case UNKNOWN, PENDING -> {
                 recordAttempt.execute(payment);
                 yield payment;
             }
@@ -90,37 +92,55 @@ public class FinalizeSettlementFlow {
     }
 
     private Payment complete(Payment payment, String railReference) {
-        payment.complete(railReference);
-        if (!transitionPayment.execute(new TransitionPaymentTask.Arguments(payment, PaymentStatus.RESERVED))) {
+        Payment transitioned = tryTransition(payment, p -> p.complete(railReference));
+        if (transitioned == null) {
             return alreadyMoved(payment);
         }
 
-        UUID receiverAccountId = resolveReceiver.execute(payment);
-        Map<UUID, Account> locked = lockAccounts.execute(List.of(payment.getSenderAccountId(), receiverAccountId));
-        Account sender = locked.get(payment.getSenderAccountId());
+        UUID receiverAccountId = resolveReceiver.execute(transitioned);
+        Map<UUID, Account> locked = lockAccounts.execute(List.of(transitioned.getSenderAccountId(), receiverAccountId));
+        Account sender = locked.get(transitioned.getSenderAccountId());
         Account receiver = locked.get(receiverAccountId);
-        sender.settleDebit(payment.getAmount());
-        receiver.credit(payment.getAmount());
+        sender.settleDebit(transitioned.getAmount());
+        receiver.credit(transitioned.getAmount());
         saveAccounts.execute(List.of(sender, receiver));
 
-        postLedger.execute(new PostLedgerEntriesTask.Arguments(payment, receiverAccountId));
-        writeOutbox.execute(payment);
-        return payment;
+        postLedger.execute(new PostLedgerEntriesTask.Arguments(transitioned, receiverAccountId));
+        writeOutbox.execute(transitioned);
+        return transitioned;
     }
 
     private Payment fail(Payment payment) {
-        payment.fail(FailureReason.RAIL_REJECTED);
-        if (!transitionPayment.execute(new TransitionPaymentTask.Arguments(payment, PaymentStatus.RESERVED))) {
+        Payment transitioned = tryTransition(payment, p -> p.fail(FailureReason.RAIL_REJECTED));
+        if (transitioned == null) {
             return alreadyMoved(payment);
         }
 
         Account sender =
-                lockAccounts.execute(List.of(payment.getSenderAccountId())).get(payment.getSenderAccountId());
-        sender.release(payment.getAmount());
+                lockAccounts.execute(List.of(transitioned.getSenderAccountId())).get(transitioned.getSenderAccountId());
+        sender.release(transitioned.getAmount());
         saveAccounts.execute(List.of(sender));
 
-        writeOutbox.execute(payment);
-        return payment;
+        writeOutbox.execute(transitioned);
+        return transitioned;
+    }
+
+    private Payment tryTransition(Payment payment, Consumer<Payment> mutator) {
+        PaymentStatus from = payment.getStatus();
+        mutator.accept(payment);
+        if (transitionPayment.execute(new TransitionPaymentTask.Arguments(payment, from))) {
+            return payment;
+        }
+        if (from == PaymentStatus.RESERVED) {
+            Payment reloaded = findPayment.execute(payment.getId());
+            if (reloaded.getStatus() == PaymentStatus.SUBMITTED) {
+                mutator.accept(reloaded);
+                if (transitionPayment.execute(new TransitionPaymentTask.Arguments(reloaded, PaymentStatus.SUBMITTED))) {
+                    return reloaded;
+                }
+            }
+        }
+        return null;
     }
 
     private Payment alreadyMoved(Payment payment) {

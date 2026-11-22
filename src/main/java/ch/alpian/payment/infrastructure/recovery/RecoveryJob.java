@@ -69,24 +69,35 @@ class RecoveryJob {
         this.properties = properties;
 
         Gauge.builder("payments.recovery.stuck", this, RecoveryJob::countStuck)
-                .description("RESERVED payments that have exhausted recovery attempts and need manual review")
+                .description(
+                        "RESERVED or SUBMITTED payments that have exhausted recovery attempts and need manual review")
                 .register(meters);
     }
 
     @Scheduled(fixedDelayString = "${app.recovery.interval-ms}")
     public void recover() {
         Instant threshold = Instant.now().minus(properties.staleAfter());
-        List<Payment> stale = readOnlyTx.execute(
-                status -> payments.findStaleReserved(threshold, properties.maxAttempts(), BATCH_SIZE));
-        if (stale == null || stale.isEmpty()) return;
 
-        log.info("Recovery: found {} stale RESERVED payment(s) to retry", stale.size());
-        for (Payment payment : stale) {
-            retryOne(payment);
+        List<Payment> staleReserved = readOnlyTx.execute(
+                status -> payments.findStaleReserved(threshold, properties.maxAttempts(), BATCH_SIZE));
+        if (staleReserved != null && !staleReserved.isEmpty()) {
+            log.info("Recovery: found {} stale RESERVED payment(s) to retry", staleReserved.size());
+            for (Payment payment : staleReserved) {
+                retryReserved(payment);
+            }
+        }
+
+        List<Payment> staleSubmitted = readOnlyTx.execute(
+                status -> payments.findStaleSubmitted(threshold, properties.maxAttempts(), BATCH_SIZE));
+        if (staleSubmitted != null && !staleSubmitted.isEmpty()) {
+            log.info("Recovery: found {} stale SUBMITTED payment(s) to poll", staleSubmitted.size());
+            for (Payment payment : staleSubmitted) {
+                recoverSubmitted(payment);
+            }
         }
     }
 
-    private void retryOne(Payment payment) {
+    private void retryReserved(Payment payment) {
         // Check whether the rail already processed the payment before re-submitting.
         // If the initial settle() timed out the rail may have recorded a SETTLED/REJECTED outcome
         // that we never saw. Re-submitting in that case would be a semantic duplicate.
@@ -94,6 +105,16 @@ class RecoveryJob {
         SettlementOutcome outcome = status.status() == SettlementOutcome.Status.UNKNOWN
                 ? callRail.execute(payment) // rail has no record; re-submit
                 : status; // rail has a definitive answer; use it directly
+        finalizeSafely(payment, outcome);
+    }
+
+    private void recoverSubmitted(Payment payment) {
+        // Already accepted by the rail; poll getStatus() (covers dropped callbacks). Never re-submit.
+        SettlementOutcome outcome = callRail.getStatus(payment);
+        finalizeSafely(payment, outcome);
+    }
+
+    private void finalizeSafely(Payment payment, SettlementOutcome outcome) {
         try {
             retry.execute(() -> finalizeSettlement.finalizeSettlement(payment.getId(), outcome));
         } catch (RuntimeException e) {
@@ -105,9 +126,11 @@ class RecoveryJob {
         Instant threshold = Instant.now().minus(properties.staleAfter());
         Long count = jdbc.sql("""
                         SELECT COUNT(*) FROM payments
-                        WHERE status = 'RESERVED'
-                          AND reserved_at < :before
-                          AND settlement_attempts >= :maxAttempts
+                        WHERE settlement_attempts >= :maxAttempts
+                          AND (
+                              (status = 'RESERVED' AND reserved_at < :before)
+                              OR (status = 'SUBMITTED' AND submitted_at < :before)
+                          )
                         """)
                 .param("before", Timestamp.from(threshold))
                 .param("maxAttempts", properties.maxAttempts())

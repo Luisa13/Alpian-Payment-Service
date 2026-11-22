@@ -65,10 +65,17 @@ app:
     base-backoff-ms: 20
   rail:
     timeout: 2s                  # hard limit for a settlement rail call
+    callback:
+      hmac-secret: ${RAIL_CALLBACK_HMAC_SECRET:dev-rail-callback-secret-change-me}
     simulated:                   # the simulated external rail (receiver is an IBAN)
       delay: 100ms
+      delivery-delay: 1s
+      dispatch-interval-ms: 100
       rejection-rate: 0.05
       timeout-rate: 0.05
+      duplicate-rate: 0.0
+      drop-rate: 0.0
+      callback-url: http://localhost:${server.port}/internal/rail/callbacks
   recovery:                      # stale-payment recovery job
     interval-ms: 10000           # run every 10 s
     stale-after: 30s             # well above the rail timeout (app.rail.timeout)

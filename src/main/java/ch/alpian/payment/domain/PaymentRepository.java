@@ -36,4 +36,11 @@ public interface PaymentRepository {
      * Ordered oldest-first so the most overdue payments are processed first.
      */
     List<Payment> findStaleReserved(Instant reservedBefore, int maxAttempts, int limit);
+
+    /**
+     * Returns up to {@code limit} payments that are still {@code SUBMITTED}, were submitted before
+     * {@code submittedBefore}, and have fewer than {@code maxAttempts} settlement attempts recorded.
+     * Ordered oldest-first so the most overdue payments are processed first.
+     */
+    List<Payment> findStaleSubmitted(Instant submittedBefore, int maxAttempts, int limit);
 }

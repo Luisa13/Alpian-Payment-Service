@@ -24,6 +24,7 @@ public final class PaymentEvents {
             case REJECTED -> PAYMENT_REJECTED;
             case COMPLETED -> PAYMENT_COMPLETED;
             case FAILED -> PAYMENT_FAILED;
+            case SUBMITTED -> throw new IllegalArgumentException("SUBMITTED does not emit an outbox event");
         };
     }
 }

@@ -37,48 +37,63 @@ class SettlementRailIT extends PaymentIntegrationTest {
     }
 
     @Test
-    void external_transfer_persists_outcome_and_returns_the_same_outcome_across_restarts() {
+    void external_transfer_returns_accepted_and_pending_until_delivered_across_restarts() {
         UUID paymentId = UUID.randomUUID();
         var req =
                 new SettlementRequest(paymentId, UUID.randomUUID(), Receiver.external(IBAN), Money.of("50.00", "CHF"));
 
-        // First instance settles and persists to rail_sim_transfers
         var firstInstance = new SimulatedExternalRail(
-                jdbc, new SimulatedRailProperties(Duration.ZERO, 0.0, 0.0), new SecureRandom());
+                jdbc, new SimulatedRailProperties(Duration.ZERO, Duration.ofMillis(50), 0.0, 0.0), new SecureRandom());
         SettlementOutcome first = firstInstance.settle(req);
-        assertThat(first.status()).isEqualTo(SettlementOutcome.Status.SETTLED);
-        assertThat(first.reference()).startsWith("SIM-");
+        assertThat(first.status()).isEqualTo(SettlementOutcome.Status.ACCEPTED);
+        assertThat(firstInstance.getStatus(req).status()).isEqualTo(SettlementOutcome.Status.PENDING);
 
         // Second instance with 100% rejection & 100% timeout (simulating a restart with different config)
-        // must still return the persisted SETTLED outcome for the same payment id.
+        // must still return ACCEPTED on settle() and PENDING on getStatus() before delivery.
         var restartedInstance = new SimulatedExternalRail(
-                jdbc, new SimulatedRailProperties(Duration.ZERO, 1.0, 1.0), new SecureRandom());
-        SettlementOutcome second = restartedInstance.settle(req);
-        assertThat(second).isEqualTo(first);
-
-        // And the wired Spring bean returns the exact same outcome.
-        assertThat(rail.settle(req)).isEqualTo(first);
+                jdbc, new SimulatedRailProperties(Duration.ZERO, Duration.ofMillis(50), 1.0, 1.0), new SecureRandom());
+        assertThat(restartedInstance.settle(req).status()).isEqualTo(SettlementOutcome.Status.ACCEPTED);
+        assertThat(restartedInstance.getStatus(req).status()).isEqualTo(SettlementOutcome.Status.PENDING);
+        assertThat(rail.getStatus(req).status()).isEqualTo(SettlementOutcome.Status.PENDING);
     }
 
     @Test
-    void external_transfer_remembers_rejection_and_does_not_persist_timeout() {
-        UUID rejectedPayment = UUID.randomUUID();
-        var rejectRail = new SimulatedExternalRail(
-                jdbc, new SimulatedRailProperties(Duration.ZERO, 1.0, 0.0), new SecureRandom());
-        var rejectReq = new SettlementRequest(
-                rejectedPayment, UUID.randomUUID(), Receiver.external(IBAN), Money.of("10.00", "CHF"));
+    void external_transfer_returns_stored_outcome_after_delivery_and_does_not_persist_timeout() {
+        UUID settledPayment = UUID.randomUUID();
+        var settledReq = new SettlementRequest(
+                settledPayment, UUID.randomUUID(), Receiver.external(IBAN), Money.of("10.00", "CHF"));
+        assertThat(rail.settle(settledReq).status()).isEqualTo(SettlementOutcome.Status.ACCEPTED);
+        assertThat(rail.getStatus(settledReq).status()).isEqualTo(SettlementOutcome.Status.PENDING);
 
-        assertThat(rejectRail.settle(rejectReq).status()).isEqualTo(SettlementOutcome.Status.REJECTED);
-        // Even if rejectionRate drops to 0 after restart, the stored REJECTED outcome is returned.
-        assertThat(rail.settle(rejectReq).status()).isEqualTo(SettlementOutcome.Status.REJECTED);
+        jdbc.sql("""
+                        UPDATE rail_sim_transfers
+                        SET outcome = 'SETTLED', reference = 'SIM-12345678', delivered_at = now()
+                        WHERE payment_id = :id
+                        """).param("id", settledPayment).update();
+
+        SettlementOutcome delivered = rail.getStatus(settledReq);
+        assertThat(delivered).isEqualTo(SettlementOutcome.settled("SIM-12345678"));
+        assertThat(rail.settle(settledReq)).isEqualTo(delivered);
+
+        UUID rejectedPayment = UUID.randomUUID();
+        var rejectedReq = new SettlementRequest(
+                rejectedPayment, UUID.randomUUID(), Receiver.external(IBAN), Money.of("10.00", "CHF"));
+        assertThat(rail.settle(rejectedReq).status()).isEqualTo(SettlementOutcome.Status.ACCEPTED);
+        jdbc.sql("""
+                        UPDATE rail_sim_transfers
+                        SET outcome = 'REJECTED', reference = 'SIM-REJ', delivered_at = now()
+                        WHERE payment_id = :id
+                        """).param("id", rejectedPayment).update();
+        assertThat(rail.getStatus(rejectedReq).status()).isEqualTo(SettlementOutcome.Status.REJECTED);
 
         UUID timedOutPayment = UUID.randomUUID();
         var timeoutRail = new SimulatedExternalRail(
-                jdbc, new SimulatedRailProperties(Duration.ZERO, 0.0, 1.0), new SecureRandom());
+                jdbc, new SimulatedRailProperties(Duration.ZERO, Duration.ofMillis(50), 0.0, 1.0), new SecureRandom());
         var timeoutReq = new SettlementRequest(
                 timedOutPayment, UUID.randomUUID(), Receiver.external(IBAN), Money.of("10.00", "CHF"));
 
         assertThat(timeoutRail.settle(timeoutReq).status()).isEqualTo(SettlementOutcome.Status.UNKNOWN);
+        assertThat(timeoutRail.getStatus(timeoutReq).status()).isEqualTo(SettlementOutcome.Status.UNKNOWN);
         assertThat(count("SELECT COUNT(*) FROM rail_sim_transfers WHERE payment_id = :id", timedOutPayment))
                 .isZero();
     }

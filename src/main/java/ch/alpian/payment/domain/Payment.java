@@ -24,6 +24,7 @@ public class Payment {
     private final int settlementAttempts;
     private final long version;
     private final Instant reservedAt;
+    private Instant submittedAt;
     private Instant finalizedAt;
     private final Instant createdAt;
     private Instant updatedAt;
@@ -41,6 +42,7 @@ public class Payment {
             int settlementAttempts,
             long version,
             Instant reservedAt,
+            Instant submittedAt,
             Instant finalizedAt,
             Instant createdAt,
             Instant updatedAt) {
@@ -56,6 +58,7 @@ public class Payment {
         this.settlementAttempts = settlementAttempts;
         this.version = version;
         this.reservedAt = reservedAt;
+        this.submittedAt = submittedAt;
         this.finalizedAt = finalizedAt;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
@@ -78,6 +81,7 @@ public class Payment {
                 0,
                 0,
                 now,
+                null,
                 null,
                 now,
                 now);
@@ -105,6 +109,7 @@ public class Payment {
                 0,
                 0,
                 null,
+                null,
                 now,
                 now,
                 now);
@@ -124,6 +129,7 @@ public class Payment {
             int settlementAttempts,
             long version,
             Instant reservedAt,
+            Instant submittedAt,
             Instant finalizedAt,
             Instant createdAt,
             Instant updatedAt) {
@@ -140,9 +146,20 @@ public class Payment {
                 settlementAttempts,
                 version,
                 reservedAt,
+                submittedAt,
                 finalizedAt,
                 createdAt,
                 updatedAt);
+    }
+
+    public void submit() {
+        if (!status.canTransitionTo(PaymentStatus.SUBMITTED)) {
+            throw new InvalidPaymentStateException(id, status, PaymentStatus.SUBMITTED);
+        }
+        Instant now = Instant.now();
+        this.status = PaymentStatus.SUBMITTED;
+        this.submittedAt = now;
+        this.updatedAt = now;
     }
 
     public void complete(String railReference) {
@@ -210,6 +227,10 @@ public class Payment {
 
     public Instant getReservedAt() {
         return reservedAt;
+    }
+
+    public Instant getSubmittedAt() {
+        return submittedAt;
     }
 
     public Instant getFinalizedAt() {
