@@ -135,4 +135,30 @@ class CreatePaymentFlowTest {
         assertThat(result.kind()).isEqualTo(PaymentResult.Kind.REPLAYED);
         assertThat(result.payment()).isEqualTo(winner);
     }
+
+    @Test
+    void replayed_reserved_payment_returns_accepted_kind_without_calling_the_rail() {
+        Payment inFlight = Payment.reserved("key", "h".repeat(64), SENDER_ID, RECEIVER, AMOUNT);
+        when(reserveFunds.reserve(any())).thenReturn(new ReserveFundsFlow.Result.Replayed(inFlight));
+
+        PaymentResult result = flow.initiate(args());
+
+        assertThat(result.kind()).isEqualTo(PaymentResult.Kind.ACCEPTED);
+        assertThat(result.payment()).isEqualTo(inFlight);
+        verify(callRail, never()).execute(any());
+    }
+
+    @Test
+    void duplicate_idempotency_key_when_winner_still_reserved_returns_accepted_kind() {
+        Payment winner = Payment.reserved("key", "h".repeat(64), SENDER_ID, RECEIVER, AMOUNT);
+
+        doThrow(new DuplicateIdempotencyKeyException("key", null)).when(retry).execute(any());
+        when(checkIdempotency.execute(any())).thenReturn(Optional.of(winner));
+
+        PaymentResult result = flow.initiate(args());
+
+        assertThat(result.kind()).isEqualTo(PaymentResult.Kind.ACCEPTED);
+        assertThat(result.payment()).isEqualTo(winner);
+        verify(callRail, never()).execute(any());
+    }
 }
