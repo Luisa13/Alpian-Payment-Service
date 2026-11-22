@@ -1,5 +1,6 @@
 package ch.alpian.payment.infrastructure.persistence;
 
+import ch.alpian.payment.domain.OutboxRepository;
 import java.util.UUID;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
@@ -9,7 +10,7 @@ import org.springframework.stereotype.Repository;
  * change it describes, so the event exists if and only if the change committed.
  */
 @Repository
-public class OutboxStore {
+class OutboxStore implements OutboxRepository {
 
     private final JdbcClient jdbc;
 
@@ -22,6 +23,7 @@ public class OutboxStore {
      * @param aggregateId the payment id, used as the Kafka message key
      * @param payloadJson the serialized event envelope
      */
+    @Override
     public void append(UUID eventId, UUID aggregateId, String eventType, String payloadJson) {
         jdbc.sql("""
                         INSERT INTO outbox_events (id, aggregate_id, event_type, payload)
