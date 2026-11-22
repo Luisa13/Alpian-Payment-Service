@@ -167,6 +167,53 @@ class RecoveryJobIT extends PaymentIntegrationTest {
         verify(rail, never()).getStatus(any());
     }
 
+    @Test
+    void stale_submitted_payment_is_completed_via_getStatus_without_resubmitting() {
+        when(rail.settle(any())).thenReturn(SettlementOutcome.accepted());
+        when(rail.getStatus(any())).thenReturn(SettlementOutcome.settled("STORED-CB-001"));
+
+        UUID sender = newAccount("100.00");
+        UUID receiver = newAccount("0.00");
+
+        ResponseEntity<PaymentResponse> response = postPayment(sender, receiver, "40.00");
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+        UUID paymentId = response.getBody().getId();
+        assertThat(paymentStatus(paymentId)).isEqualTo("SUBMITTED");
+
+        backdateSubmittedAt(paymentId, 60);
+        recoveryJob.recover();
+
+        assertThat(paymentStatus(paymentId)).isEqualTo("COMPLETED");
+        assertThat(balance(sender)).isEqualByComparingTo("60.00");
+        assertThat(balance(receiver)).isEqualByComparingTo("40.00");
+        assertThat(outboxEvents(paymentId, "PAYMENT_COMPLETED")).isEqualTo(1);
+        verify(rail, times(1)).settle(any());
+        verify(rail, times(1)).getStatus(any());
+    }
+
+    @Test
+    void stale_submitted_payment_with_pending_status_increments_attempts_and_stops_at_max() {
+        when(rail.settle(any())).thenReturn(SettlementOutcome.accepted());
+        when(rail.getStatus(any())).thenReturn(SettlementOutcome.pending());
+
+        UUID sender = newAccount("100.00");
+        UUID receiver = newAccount("0.00");
+
+        ResponseEntity<PaymentResponse> response = postPayment(sender, receiver, "40.00");
+        UUID paymentId = response.getBody().getId();
+        backdateSubmittedAt(paymentId, 60);
+
+        // 3 recovery cycles reach max-attempts (3)
+        recoveryJob.recover();
+        recoveryJob.recover();
+        recoveryJob.recover();
+        // 4th cycle must not poll the rail again
+        recoveryJob.recover();
+
+        verify(rail, times(3)).getStatus(any());
+        assertThat(paymentStatus(paymentId)).isEqualTo("SUBMITTED");
+    }
+
     // ── helpers ───────────────────────────────────────────────────────────────
 
     private ResponseEntity<PaymentResponse> postPayment(UUID sender, UUID receiver, String amount) {
@@ -183,6 +230,12 @@ class RecoveryJobIT extends PaymentIntegrationTest {
 
     private void backdateReservedAt(UUID paymentId, int seconds) {
         jdbc.sql("UPDATE payments SET reserved_at = now() - INTERVAL '" + seconds + " seconds' WHERE id = :id")
+                .param("id", paymentId)
+                .update();
+    }
+
+    private void backdateSubmittedAt(UUID paymentId, int seconds) {
+        jdbc.sql("UPDATE payments SET submitted_at = now() - INTERVAL '" + seconds + " seconds' WHERE id = :id")
                 .param("id", paymentId)
                 .update();
     }

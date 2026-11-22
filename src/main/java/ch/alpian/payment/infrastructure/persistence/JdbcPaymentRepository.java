@@ -136,6 +136,22 @@ class JdbcPaymentRepository implements PaymentRepository {
     }
 
     @Override
+    public List<Payment> findStaleSubmitted(Instant submittedBefore, int maxAttempts, int limit) {
+        return jdbc.sql(SELECT + """
+                        WHERE status = 'SUBMITTED'
+                          AND submitted_at < :before
+                          AND settlement_attempts < :maxAttempts
+                        ORDER BY submitted_at
+                        LIMIT :limit
+                        """)
+                .param("before", timestamp(submittedBefore))
+                .param("maxAttempts", maxAttempts)
+                .param("limit", limit)
+                .query(JdbcPaymentRepository::map)
+                .list();
+    }
+
+    @Override
     public void recordSettlementAttempt(UUID paymentId) {
         jdbc.sql("""
                         UPDATE payments

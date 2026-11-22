@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import ch.alpian.payment.application.flows.FinalizeSettlementFlow;
 import ch.alpian.payment.application.flows.ReserveFundsFlow;
+import ch.alpian.payment.application.flows.SubmitPaymentFlow;
 import ch.alpian.payment.application.support.RequestHash;
 import ch.alpian.payment.domain.Money;
 import ch.alpian.payment.domain.Payment;
@@ -29,6 +30,44 @@ class SettlementFinalizerIT extends PaymentIntegrationTest {
 
     @Autowired
     FinalizeSettlementFlow finalizeSettlement;
+
+    @Autowired
+    SubmitPaymentFlow submitPayment;
+
+    @Test
+    @Timeout(60)
+    void concurrent_submit_and_callback_finalization_both_succeed_cleanly() throws Exception {
+        UUID sender = newAccount("100.00");
+        Payment reserved = reserve(sender, Receiver.external("CH9300762011623852957"), "25.00");
+
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch start = new CountDownLatch(1);
+        try (ExecutorService pool = Executors.newFixedThreadPool(2)) {
+            Future<Payment> fSubmit = pool.submit(() -> {
+                ready.countDown();
+                assertThat(start.await(15, TimeUnit.SECONDS)).isTrue();
+                return submitPayment.markSubmitted(reserved.getId());
+            });
+            Future<Payment> fFinalize = pool.submit(() -> {
+                ready.countDown();
+                assertThat(start.await(15, TimeUnit.SECONDS)).isTrue();
+                return finalizeSettlement.finalizeSettlement(reserved.getId(), SettlementOutcome.settled("REF-RACE"));
+            });
+
+            assertThat(ready.await(15, TimeUnit.SECONDS)).isTrue();
+            start.countDown();
+
+            fSubmit.get(30, TimeUnit.SECONDS);
+            Payment finalized = fFinalize.get(30, TimeUnit.SECONDS);
+            assertThat(finalized.getStatus()).isEqualTo(PaymentStatus.COMPLETED);
+            assertThat(finalized.getRailReference()).isEqualTo("REF-RACE");
+        }
+
+        assertThat(balance(sender)).isEqualByComparingTo("75.00");
+        assertThat(available(sender)).isEqualByComparingTo("75.00");
+        assertThat(ledgerRows(reserved.getId())).isEqualTo(2);
+        assertThat(outboxEvents(reserved.getId(), "PAYMENT_COMPLETED")).isEqualTo(1);
+    }
 
     @Test
     @Timeout(60)
