@@ -55,6 +55,13 @@ class SimulatedExternalRail implements SettlementRail {
                 .orElseThrow(() -> new IllegalStateException("Rail outcome vanished for " + request.paymentId()));
     }
 
+    @Override
+    public SettlementOutcome getStatus(SettlementRequest request) {
+        // Return the stored outcome if the rail reached a decision; UNKNOWN otherwise.
+        // No network call, no side effects.
+        return findStored(request.paymentId()).orElse(SettlementOutcome.unknown());
+    }
+
     private Optional<SettlementOutcome> findStored(UUID paymentId) {
         return jdbc.sql("SELECT outcome, reference FROM rail_sim_transfers WHERE payment_id = :id")
                 .param("id", paymentId)

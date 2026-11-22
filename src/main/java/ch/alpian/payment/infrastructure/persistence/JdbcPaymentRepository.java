@@ -14,6 +14,8 @@ import ch.alpian.payment.domain.ReceiverType;
 import ch.alpian.payment.domain.exception.DuplicateIdempotencyKeyException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.dao.DuplicateKeyException;
@@ -113,6 +115,22 @@ class JdbcPaymentRepository implements PaymentRepository {
                 .param("from", from.name())
                 .update();
         return updated == 1;
+    }
+
+    @Override
+    public List<Payment> findStaleReserved(Instant reservedBefore, int maxAttempts, int limit) {
+        return jdbc.sql(SELECT + """
+                        WHERE status = 'RESERVED'
+                          AND reserved_at < :before
+                          AND settlement_attempts < :maxAttempts
+                        ORDER BY reserved_at
+                        LIMIT :limit
+                        """)
+                .param("before", timestamp(reservedBefore))
+                .param("maxAttempts", maxAttempts)
+                .param("limit", limit)
+                .query(JdbcPaymentRepository::map)
+                .list();
     }
 
     @Override
