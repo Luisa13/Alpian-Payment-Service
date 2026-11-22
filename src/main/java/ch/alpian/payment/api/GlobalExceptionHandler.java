@@ -1,5 +1,6 @@
 package ch.alpian.payment.api;
 
+import ch.alpian.payment.domain.exception.CallbackConflictException;
 import ch.alpian.payment.domain.exception.CurrencyMismatchException;
 import ch.alpian.payment.domain.exception.EntityNotFoundException;
 import ch.alpian.payment.domain.exception.IdempotencyConflictException;
@@ -132,6 +133,19 @@ public class GlobalExceptionHandler {
                 "Payment Rejected",
                 "The payment was rejected: " + ex.getReason(),
                 request);
+        response.getBody().setProperty("paymentId", ex.getPaymentId());
+        return response;
+    }
+
+    @ExceptionHandler(InvalidSignatureException.class)
+    public ResponseEntity<ProblemDetail> handleInvalidSignature(InvalidSignatureException ex, WebRequest request) {
+        return problem(HttpStatus.UNAUTHORIZED, "INVALID_SIGNATURE", "Invalid Signature", ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(CallbackConflictException.class)
+    public ResponseEntity<ProblemDetail> handleCallbackConflict(CallbackConflictException ex, WebRequest request) {
+        ResponseEntity<ProblemDetail> response =
+                problem(HttpStatus.CONFLICT, "CALLBACK_CONFLICT", "Callback Conflict", ex.getMessage(), request);
         response.getBody().setProperty("paymentId", ex.getPaymentId());
         return response;
     }

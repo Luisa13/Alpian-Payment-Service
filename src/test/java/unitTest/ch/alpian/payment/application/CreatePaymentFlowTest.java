@@ -13,6 +13,7 @@ import ch.alpian.payment.application.flows.CreatePaymentFlow;
 import ch.alpian.payment.application.flows.FinalizeSettlementFlow;
 import ch.alpian.payment.application.flows.PaymentResult;
 import ch.alpian.payment.application.flows.ReserveFundsFlow;
+import ch.alpian.payment.application.flows.SubmitPaymentFlow;
 import ch.alpian.payment.application.support.TransactionRetry;
 import ch.alpian.payment.application.tasks.CallSettlementRailTask;
 import ch.alpian.payment.application.tasks.CheckIdempotencyTask;
@@ -40,14 +41,15 @@ import org.springframework.transaction.TransactionStatus;
 class CreatePaymentFlowTest {
 
     private final ReserveFundsFlow reserveFunds = mock(ReserveFundsFlow.class);
+    private final SubmitPaymentFlow submitPayment = mock(SubmitPaymentFlow.class);
     private final FinalizeSettlementFlow finalizeSettlement = mock(FinalizeSettlementFlow.class);
     private final CallSettlementRailTask callRail = mock(CallSettlementRailTask.class);
     private final CheckIdempotencyTask checkIdempotency = mock(CheckIdempotencyTask.class);
     private final TransactionRetry retry = mock(TransactionRetry.class);
     private final PlatformTransactionManager txManager = mock(PlatformTransactionManager.class);
 
-    private final CreatePaymentFlow flow =
-            new CreatePaymentFlow(reserveFunds, finalizeSettlement, callRail, checkIdempotency, retry, txManager);
+    private final CreatePaymentFlow flow = new CreatePaymentFlow(
+            reserveFunds, submitPayment, finalizeSettlement, callRail, checkIdempotency, retry, txManager);
 
     private static final UUID SENDER_ID = UUID.randomUUID();
     private static final Receiver RECEIVER = Receiver.internal(UUID.randomUUID());
@@ -120,6 +122,22 @@ class CreatePaymentFlowTest {
 
         assertThat(result.kind()).isEqualTo(PaymentResult.Kind.ACCEPTED);
         assertThat(result.payment()).isEqualTo(reserved);
+    }
+
+    @Test
+    void accepted_rail_outcome_marks_payment_submitted_and_returns_202_accepted() {
+        Payment reserved = Payment.reserved("k-acc", "h".repeat(64), SENDER_ID, RECEIVER, AMOUNT);
+        Payment submitted = Payment.reserved("k-acc", "h".repeat(64), SENDER_ID, RECEIVER, AMOUNT);
+        submitted.submit();
+        when(reserveFunds.reserve(any())).thenReturn(new ReserveFundsFlow.Result.Reserved(reserved));
+        when(callRail.execute(reserved)).thenReturn(SettlementOutcome.accepted());
+        when(submitPayment.markSubmitted(reserved.getId())).thenReturn(submitted);
+
+        PaymentResult result = flow.initiate(new CreatePaymentFlow.Arguments("k-acc", SENDER_ID, RECEIVER, AMOUNT));
+
+        assertThat(result.kind()).isEqualTo(PaymentResult.Kind.ACCEPTED);
+        assertThat(result.payment().getStatus()).isEqualTo(ch.alpian.payment.domain.PaymentStatus.SUBMITTED);
+        verify(finalizeSettlement, never()).finalizeSettlement(any(), any());
     }
 
     @Test

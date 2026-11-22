@@ -25,6 +25,8 @@ app:
   outbox:
     relay-interval-ms: 100
   rail:
+    callback:
+      hmac-secret: test-rail-callback-secret
     simulated:
       delay: 0ms
       delivery-delay: 50ms

@@ -65,6 +65,8 @@ app:
     base-backoff-ms: 20
   rail:
     timeout: 2s                  # hard limit for a settlement rail call
+    callback:
+      hmac-secret: ${RAIL_CALLBACK_HMAC_SECRET:dev-rail-callback-secret-change-me}
     simulated:                   # the simulated external rail (receiver is an IBAN)
       delay: 100ms
       delivery-delay: 1s

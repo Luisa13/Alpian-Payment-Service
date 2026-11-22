@@ -39,6 +39,7 @@ public class CreatePaymentFlow {
     public record Arguments(String idempotencyKey, UUID senderAccountId, Receiver receiver, Money amount) {}
 
     private final ReserveFundsFlow reserveFunds;
+    private final SubmitPaymentFlow submitPayment;
     private final FinalizeSettlementFlow finalizeSettlement;
     private final CallSettlementRailTask callRail;
     private final CheckIdempotencyTask checkIdempotency;
@@ -47,12 +48,14 @@ public class CreatePaymentFlow {
 
     public CreatePaymentFlow(
             ReserveFundsFlow reserveFunds,
+            SubmitPaymentFlow submitPayment,
             FinalizeSettlementFlow finalizeSettlement,
             CallSettlementRailTask callRail,
             CheckIdempotencyTask checkIdempotency,
             TransactionRetry retry,
             PlatformTransactionManager transactionManager) {
         this.reserveFunds = reserveFunds;
+        this.submitPayment = submitPayment;
         this.finalizeSettlement = finalizeSettlement;
         this.callRail = callRail;
         this.checkIdempotency = checkIdempotency;
@@ -82,6 +85,15 @@ public class CreatePaymentFlow {
 
     private PaymentResult settle(Payment reserved) {
         SettlementOutcome outcome = callRail.execute(reserved);
+        if (outcome.status() == SettlementOutcome.Status.ACCEPTED) {
+            try {
+                Payment submitted = retry.execute(() -> submitPayment.markSubmitted(reserved.getId()));
+                return new PaymentResult(submitted, PaymentResult.Kind.ACCEPTED);
+            } catch (RuntimeException e) {
+                log.error("Could not mark payment {} as SUBMITTED after rail acceptance", reserved.getId(), e);
+                return new PaymentResult(reserved, PaymentResult.Kind.ACCEPTED);
+            }
+        }
         try {
             Payment current = retry.execute(() -> finalizeSettlement.finalizeSettlement(reserved.getId(), outcome));
             return current.getStatus() == PaymentStatus.RESERVED
