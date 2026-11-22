@@ -34,7 +34,7 @@ fi
 echo "OK: 201 Created"
 echo "$BODY_RESP" | python3 -m json.tool 2>/dev/null || echo "$BODY_RESP"
 
-PAYMENT_ID=$(echo "$BODY_RESP" | python3 -c "import sys, json; print(json.load(sys.stdin)['paymentId'])")
+PAYMENT_ID=$(echo "$BODY_RESP" | python3 -c "import sys, json; print(json.load(sys.stdin)['id'])")
 if [ -z "$PAYMENT_ID" ]; then
   echo "FAIL: could not extract paymentId from response"
   exit 1

@@ -1,4 +1,4 @@
-.PHONY: up down build test test-parallel run smoke smoke-outbox smoke-outbox-dlq smoke-burst format help
+.PHONY: up down build test test-parallel run smoke smoke-outbox smoke-outbox-dlq smoke-burst smoke-resilience format help
 
 COMPOSE = docker compose
 GRADLEW = ./gradlew
@@ -43,6 +43,9 @@ smoke-outbox-dlq: ## Run outbox dead-letter smoke test (stops/starts Kafka)
 
 smoke-burst: ## Run concurrent burst smoke test (BURST_SIZE=10 parallel payments)
 	@bash scripts/smoke-burst.sh
+
+smoke-resilience: ## Run HA, concurrency, error-handling, and external-rail smoke tests
+	@bash scripts/smoke-resilience.sh
 
 format: ## Auto-format all Java sources with palantir-java-format
 	$(GRADLEW) spotlessApply

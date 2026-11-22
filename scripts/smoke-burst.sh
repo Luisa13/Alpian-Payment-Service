@@ -50,7 +50,7 @@ for i in $(seq 1 "$BURST_SIZE"); do
     echo ""
     FAILURES=$((FAILURES + 1))
   else
-    PID_VAL=$(python3 -c "import sys, json; print(json.load(sys.stdin)['paymentId'])" < "$TMP_DIR/body_$i")
+    PID_VAL=$(python3 -c "import sys, json; print(json.load(sys.stdin)['id'])" < "$TMP_DIR/body_$i")
     PAYMENT_IDS+=("$PID_VAL")
   fi
 done
