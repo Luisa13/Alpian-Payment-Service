@@ -11,15 +11,16 @@ psql_query() {
   $COMPOSE exec -T postgres psql -U payment -d paymentdb -tAc "$1"
 }
 
-ensure_kafka_up() {
+cleanup() {
   if [ "$KAFKA_STOPPED" -eq 1 ]; then
     echo ""
     echo "==> Cleanup: ensuring Kafka is started"
     $COMPOSE start kafka >/dev/null 2>&1 || true
     KAFKA_STOPPED=0
   fi
+  psql_query "DELETE FROM outbox_events WHERE id = '$POISON_ID';" >/dev/null 2>&1 || true
 }
-trap ensure_kafka_up EXIT
+trap cleanup EXIT
 
 echo "==> Step 1: Stopping Kafka so outbox sends fail"
 $COMPOSE stop kafka
@@ -48,14 +49,14 @@ while [ $SECONDS -lt $DEADLINE ]; do
     FROM outbox_events
     WHERE id = '$POISON_ID';
   " | tr -d '[:space:]')
-  if [ "$ROW_STATE" = "5|t|t|t" ]; then
+  if [ "$ROW_STATE" = "5|true|true|true" ]; then
     break
   fi
   sleep 2
 done
 
-if [ "$ROW_STATE" != "5|t|t|t" ]; then
-  echo "FAIL: expected poison row state '5|t|t|t' (attempts=5, dead_lettered, unpublished, has_error), got '$ROW_STATE'"
+if [ "$ROW_STATE" != "5|true|true|true" ]; then
+  echo "FAIL: expected poison row state '5|true|true|true' (attempts=5, dead_lettered, unpublished, has_error), got '$ROW_STATE'"
   psql_query "
     SELECT id, publish_attempts, dead_lettered_at, published_at, last_error
     FROM outbox_events
@@ -122,7 +123,7 @@ if [ "$HTTP_CODE" != "201" ]; then
   exit 1
 fi
 
-PAYMENT_ID=$(echo "$BODY_RESP" | python3 -c "import sys, json; print(json.load(sys.stdin)['paymentId'])")
+PAYMENT_ID=$(echo "$BODY_RESP" | python3 -c "import sys, json; print(json.load(sys.stdin)['id'])")
 echo "OK: 201 Created (Payment ID: $PAYMENT_ID)"
 
 DEADLINE=$((SECONDS + 15))

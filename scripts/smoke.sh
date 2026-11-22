@@ -74,13 +74,14 @@ fi
 echo "OK: 422 conflict on body mismatch"
 
 echo ""
-echo "==> Custom metrics (payments_created_total)"
+echo "==> Custom metrics (payments_notifications_sent_total, outbox_backlog_events)"
 METRICS=$(curl -s "$BASE_URL/actuator/prometheus")
-if echo "$METRICS" | grep -q "payments_created_total"; then
-  echo "OK: metrics endpoint contains payments_created_total"
-  echo "$METRICS" | grep "^payments_" | head -10
+if echo "$METRICS" | grep -q "payments_notifications_sent_total" && echo "$METRICS" | grep -q "outbox_backlog_events"; then
+  echo "OK: metrics endpoint contains custom payment and outbox metrics"
+  echo "$METRICS" | grep -E "^(payments_|outbox_)" | head -10
 else
-  echo "WARN: payments_created_total not found in metrics (service may not have processed yet)"
+  echo "FAIL: expected custom metrics not found in /actuator/prometheus"
+  exit 1
 fi
 
 echo ""
