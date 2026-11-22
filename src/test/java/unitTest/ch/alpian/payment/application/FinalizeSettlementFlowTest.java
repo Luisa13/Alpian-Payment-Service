@@ -79,6 +79,70 @@ class FinalizeSettlementFlowTest {
     }
 
     @Test
+    void settled_outcome_from_submitted_completes_payment() {
+        UUID senderId = UUID.randomUUID();
+        UUID receiverId = UUID.randomUUID();
+        Payment payment = Payment.reserved(
+                "k-sub", "h".repeat(64), senderId, Receiver.internal(receiverId), Money.of("25.00", "CHF"));
+        payment.submit();
+        Account sender = new Account(
+                senderId, "Alice", AccountType.CUSTOMER, Money.of("100.00", "CHF"), Money.of("75.00", "CHF"), 0);
+        Account receiver = new Account(
+                receiverId, "Bob", AccountType.CUSTOMER, Money.of("0.00", "CHF"), Money.of("0.00", "CHF"), 0);
+
+        when(findPayment.execute(payment.getId())).thenReturn(payment);
+        when(transition.execute(any())).thenReturn(true);
+        when(resolveReceiver.execute(any())).thenReturn(receiverId);
+        when(lockAccounts.execute(any())).thenReturn(Map.of(senderId, sender, receiverId, receiver));
+
+        Payment result = flow.finalizeSettlement(payment.getId(), SettlementOutcome.settled("REF-SUB"));
+
+        assertThat(result.getStatus()).isEqualTo(PaymentStatus.COMPLETED);
+        verify(postLedger).execute(any());
+        verify(writeOutbox).execute(any());
+    }
+
+    @Test
+    void retries_from_submitted_when_reserved_transition_loses_race_to_submit() {
+        UUID senderId = UUID.randomUUID();
+        UUID receiverId = UUID.randomUUID();
+        Payment reserved = Payment.reserved(
+                "k-race", "h".repeat(64), senderId, Receiver.internal(receiverId), Money.of("25.00", "CHF"));
+        Payment submitted = Payment.restore(
+                reserved.getId(),
+                reserved.getIdempotencyKey(),
+                reserved.getRequestHash(),
+                senderId,
+                reserved.getReceiver(),
+                reserved.getAmount(),
+                PaymentStatus.SUBMITTED,
+                null,
+                null,
+                0,
+                1,
+                reserved.getReservedAt(),
+                java.time.Instant.now(),
+                null,
+                reserved.getCreatedAt(),
+                java.time.Instant.now());
+        Account sender = new Account(
+                senderId, "Alice", AccountType.CUSTOMER, Money.of("100.00", "CHF"), Money.of("75.00", "CHF"), 0);
+        Account receiver = new Account(
+                receiverId, "Bob", AccountType.CUSTOMER, Money.of("0.00", "CHF"), Money.of("0.00", "CHF"), 0);
+
+        when(findPayment.execute(reserved.getId())).thenReturn(reserved, submitted);
+        when(transition.execute(any())).thenReturn(false, true);
+        when(resolveReceiver.execute(any())).thenReturn(receiverId);
+        when(lockAccounts.execute(any())).thenReturn(Map.of(senderId, sender, receiverId, receiver));
+
+        Payment result = flow.finalizeSettlement(reserved.getId(), SettlementOutcome.settled("REF-RACE"));
+
+        assertThat(result.getStatus()).isEqualTo(PaymentStatus.COMPLETED);
+        verify(postLedger).execute(any());
+        verify(writeOutbox).execute(any());
+    }
+
+    @Test
     void settled_outcome_completes_payment_posts_ledger_and_writes_outbox() {
         UUID senderId = UUID.randomUUID();
         UUID receiverId = UUID.randomUUID();

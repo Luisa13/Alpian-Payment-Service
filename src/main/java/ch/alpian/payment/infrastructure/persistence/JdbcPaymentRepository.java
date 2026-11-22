@@ -30,7 +30,7 @@ class JdbcPaymentRepository implements PaymentRepository {
     private static final String SELECT = """
             SELECT id, idempotency_key, request_hash, sender_account_id, receiver_type, receiver_account_id,
                    receiver_iban, amount, currency, status, failure_reason, rail_reference, settlement_attempts,
-                   version, reserved_at, finalized_at, created_at, updated_at
+                   version, reserved_at, submitted_at, finalized_at, created_at, updated_at
             FROM payments
             """;
 
@@ -99,7 +99,8 @@ class JdbcPaymentRepository implements PaymentRepository {
         int updated = jdbc.sql("""
                         UPDATE payments
                         SET status = :to, failure_reason = :failureReason, rail_reference = :railReference,
-                            finalized_at = :finalizedAt, version = version + 1, updated_at = :updatedAt
+                            submitted_at = :submittedAt, finalized_at = :finalizedAt,
+                            version = version + 1, updated_at = :updatedAt
                         WHERE id = :id AND status = :from
                         """)
                 .param("to", p.getStatus().name())
@@ -109,6 +110,7 @@ class JdbcPaymentRepository implements PaymentRepository {
                                 ? null
                                 : p.getFailureReason().name())
                 .param("railReference", p.getRailReference())
+                .param("submittedAt", timestamp(p.getSubmittedAt()))
                 .param("finalizedAt", timestamp(p.getFinalizedAt()))
                 .param("updatedAt", timestamp(p.getUpdatedAt()))
                 .param("id", p.getId())
@@ -138,7 +140,7 @@ class JdbcPaymentRepository implements PaymentRepository {
         jdbc.sql("""
                         UPDATE payments
                         SET settlement_attempts = settlement_attempts + 1, version = version + 1, updated_at = now()
-                        WHERE id = :id AND status = 'RESERVED'
+                        WHERE id = :id AND status IN ('RESERVED', 'SUBMITTED')
                         """).param("id", paymentId).update();
     }
 
@@ -161,6 +163,7 @@ class JdbcPaymentRepository implements PaymentRepository {
                 rs.getInt("settlement_attempts"),
                 rs.getLong("version"),
                 instant(rs, "reserved_at"),
+                instant(rs, "submitted_at"),
                 instant(rs, "finalized_at"),
                 instant(rs, "created_at"),
                 instant(rs, "updated_at"));

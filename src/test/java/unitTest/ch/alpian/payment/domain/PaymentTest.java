@@ -40,6 +40,31 @@ class PaymentTest {
     }
 
     @Test
+    void submit_transitions_reserved_to_submitted_and_sets_submittedAt() {
+        Payment p = reserved();
+        p.submit();
+        assertThat(p.getStatus()).isEqualTo(PaymentStatus.SUBMITTED);
+        assertThat(p.getSubmittedAt()).isNotNull();
+        assertThat(p.getFinalizedAt()).isNull();
+    }
+
+    @Test
+    void submitted_payment_can_complete_or_fail_but_not_resubmit() {
+        Payment p1 = reserved();
+        p1.submit();
+        p1.complete("REF-SUB");
+        assertThat(p1.getStatus()).isEqualTo(PaymentStatus.COMPLETED);
+        assertThat(p1.getSubmittedAt()).isNotNull();
+        assertThat(p1.getFinalizedAt()).isNotNull();
+
+        Payment p2 = reserved();
+        p2.submit();
+        assertThatThrownBy(p2::submit).isInstanceOf(InvalidPaymentStateException.class);
+        p2.fail(FailureReason.RAIL_REJECTED);
+        assertThat(p2.getStatus()).isEqualTo(PaymentStatus.FAILED);
+    }
+
+    @Test
     void complete_stores_the_rail_reference() {
         Payment p = reserved();
         p.complete("REF-1");

@@ -4,19 +4,22 @@ import java.util.EnumSet;
 import java.util.Set;
 
 /**
- * Payment lifecycle (Phase 1).
+ * Payment lifecycle.
  *
  * <pre>
- *   new ──▶ REJECTED                      (final, nothing held)
- *   new ──▶ RESERVED ──▶ COMPLETED        (final)
- *                   └──▶ FAILED           (final, hold released)
+ *   new ──▶ REJECTED                              (final, nothing held)
+ *   new ──▶ RESERVED ──▶ SUBMITTED ──▶ COMPLETED  (final)
+ *               │                 └──▶ FAILED     (final, hold released)
+ *               ├────────────────────▶ COMPLETED  (final, sync rail or early callback)
+ *               └────────────────────▶ FAILED     (final, sync rail or early callback)
  * </pre>
  *
- * Final states never change. {@code SETTLING} is added in Phase 2.
+ * Final states never change.
  */
 public enum PaymentStatus {
     REJECTED,
     RESERVED,
+    SUBMITTED,
     COMPLETED,
     FAILED;
 
@@ -24,7 +27,7 @@ public enum PaymentStatus {
     private static final Set<PaymentStatus> INITIAL = EnumSet.of(REJECTED, RESERVED);
 
     public boolean isFinal() {
-        return this != RESERVED;
+        return this != RESERVED && this != SUBMITTED;
     }
 
     public boolean canStartAs() {
@@ -32,6 +35,10 @@ public enum PaymentStatus {
     }
 
     public boolean canTransitionTo(PaymentStatus next) {
-        return this == RESERVED && (next == COMPLETED || next == FAILED);
+        return switch (this) {
+            case RESERVED -> next == SUBMITTED || next == COMPLETED || next == FAILED;
+            case SUBMITTED -> next == COMPLETED || next == FAILED;
+            case REJECTED, COMPLETED, FAILED -> false;
+        };
     }
 }

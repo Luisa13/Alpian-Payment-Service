@@ -25,9 +25,17 @@ class PaymentStatusTest {
 
     @ParameterizedTest
     @EnumSource(PaymentStatus.class)
-    void reserved_cannot_stay_reserved_or_become_rejected(PaymentStatus next) {
-        boolean allowed = next == PaymentStatus.COMPLETED || next == PaymentStatus.FAILED;
+    void reserved_can_only_become_submitted_completed_or_failed(PaymentStatus next) {
+        boolean allowed =
+                next == PaymentStatus.SUBMITTED || next == PaymentStatus.COMPLETED || next == PaymentStatus.FAILED;
         assertThat(PaymentStatus.RESERVED.canTransitionTo(next)).isEqualTo(allowed);
+    }
+
+    @ParameterizedTest
+    @EnumSource(PaymentStatus.class)
+    void submitted_can_only_become_completed_or_failed(PaymentStatus next) {
+        boolean allowed = next == PaymentStatus.COMPLETED || next == PaymentStatus.FAILED;
+        assertThat(PaymentStatus.SUBMITTED.canTransitionTo(next)).isEqualTo(allowed);
     }
 
     @ParameterizedTest
@@ -39,9 +47,10 @@ class PaymentStatusTest {
     }
 
     @Test
-    void only_reserved_is_not_final() {
+    void only_reserved_and_submitted_are_not_final() {
         for (PaymentStatus status : PaymentStatus.values()) {
-            assertThat(status.isFinal()).isEqualTo(status != PaymentStatus.RESERVED);
+            boolean nonFinal = status == PaymentStatus.RESERVED || status == PaymentStatus.SUBMITTED;
+            assertThat(status.isFinal()).isEqualTo(!nonFinal);
         }
     }
 
@@ -49,6 +58,7 @@ class PaymentStatusTest {
     void a_new_payment_starts_rejected_or_reserved_only() {
         assertThat(PaymentStatus.REJECTED.canStartAs()).isTrue();
         assertThat(PaymentStatus.RESERVED.canStartAs()).isTrue();
+        assertThat(PaymentStatus.SUBMITTED.canStartAs()).isFalse();
         assertThat(PaymentStatus.COMPLETED.canStartAs()).isFalse();
         assertThat(PaymentStatus.FAILED.canStartAs()).isFalse();
     }
