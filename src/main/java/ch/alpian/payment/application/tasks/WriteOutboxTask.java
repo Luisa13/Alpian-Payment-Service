@@ -3,8 +3,8 @@ package ch.alpian.payment.application.tasks;
 import ch.alpian.payment.application.events.PaymentEvents;
 import ch.alpian.payment.application.events.PaymentPayload;
 import ch.alpian.payment.domain.EventEnvelope;
+import ch.alpian.payment.domain.OutboxRepository;
 import ch.alpian.payment.domain.Payment;
-import ch.alpian.payment.infrastructure.persistence.OutboxStore;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.UUID;
@@ -20,10 +20,10 @@ import org.springframework.stereotype.Component;
 @Component
 public class WriteOutboxTask implements Task<Payment, Void> {
 
-    private final OutboxStore outbox;
+    private final OutboxRepository outbox;
     private final ObjectMapper objectMapper;
 
-    public WriteOutboxTask(OutboxStore outbox, ObjectMapper objectMapper) {
+    public WriteOutboxTask(OutboxRepository outbox, ObjectMapper objectMapper) {
         this.outbox = outbox;
         this.objectMapper = objectMapper;
     }

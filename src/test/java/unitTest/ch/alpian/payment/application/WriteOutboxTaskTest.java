@@ -9,9 +9,9 @@ import ch.alpian.payment.application.events.PaymentEvents;
 import ch.alpian.payment.application.tasks.WriteOutboxTask;
 import ch.alpian.payment.domain.FailureReason;
 import ch.alpian.payment.domain.Money;
+import ch.alpian.payment.domain.OutboxRepository;
 import ch.alpian.payment.domain.Payment;
 import ch.alpian.payment.domain.Receiver;
-import ch.alpian.payment.infrastructure.persistence.OutboxStore;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import java.util.UUID;
@@ -19,7 +19,7 @@ import org.junit.jupiter.api.Test;
 
 class WriteOutboxTaskTest {
 
-    private final OutboxStore outbox = mock(OutboxStore.class);
+    private final OutboxRepository outbox = mock(OutboxRepository.class);
     private final WriteOutboxTask task =
             new WriteOutboxTask(outbox, new ObjectMapper().registerModule(new JavaTimeModule()));
 

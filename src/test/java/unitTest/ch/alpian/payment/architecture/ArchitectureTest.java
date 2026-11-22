@@ -59,6 +59,16 @@ class ArchitectureTest {
                     + " directly into infrastructure repositories or adapters");
 
     @ArchTest
+    static final ArchRule application_must_not_access_infrastructure = noClasses()
+            .that()
+            .resideInAPackage("ch.alpian.payment..application..")
+            .should()
+            .accessClassesThat()
+            .resideInAPackage("ch.alpian.payment..infrastructure..")
+            .because("application layer flows and tasks must depend on domain ports, not"
+                    + " infrastructure repositories or adapters");
+
+    @ArchTest
     static final ArchRule domain_must_not_access_other_layers = noClasses()
             .that()
             .resideInAPackage("ch.alpian.payment..domain..")
