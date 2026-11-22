@@ -105,10 +105,11 @@ public class CreatePaymentFlow {
     }
 
     private static PaymentResult replayed(Payment payment) {
-        return new PaymentResult(
-                payment,
-                payment.getStatus() == PaymentStatus.REJECTED
-                        ? PaymentResult.Kind.REJECTED
-                        : PaymentResult.Kind.REPLAYED);
+        PaymentResult.Kind kind = switch (payment.getStatus()) {
+            case REJECTED -> PaymentResult.Kind.REJECTED;
+            case RESERVED -> PaymentResult.Kind.ACCEPTED;
+            case COMPLETED, FAILED -> PaymentResult.Kind.REPLAYED;
+        };
+        return new PaymentResult(payment, kind);
     }
 }
