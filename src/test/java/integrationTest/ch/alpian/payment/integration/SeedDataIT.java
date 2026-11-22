@@ -15,7 +15,7 @@ class SeedDataIT extends PaymentIntegrationTest {
     private static final UUID ALICE = UUID.fromString("a0000000-0000-0000-0000-000000000001");
 
     @Test
-    void seed_has_customer_accounts_and_one_chf_clearing_account() {
+    void seed_has_customer_accounts_and_chf_clearing_shards() {
         long customers = jdbc.sql("SELECT COUNT(*) FROM accounts WHERE account_type = 'CUSTOMER'")
                 .query(Long.class)
                 .single();
@@ -23,7 +23,7 @@ class SeedDataIT extends PaymentIntegrationTest {
                 .query(Long.class)
                 .single();
         assertThat(customers).isGreaterThanOrEqualTo(8);
-        assertThat(clearing).isEqualTo(1);
+        assertThat(clearing).isEqualTo(8);
     }
 
     @Test
@@ -59,7 +59,8 @@ class SeedDataIT extends PaymentIntegrationTest {
     @Test
     void opening_ledger_entries_have_no_payment_and_clearing_starts_at_zero() {
         assertThat(ledgerSum(ALICE)).isEqualByComparingTo("10000.00");
-        assertThat(ledgerSum(clearingAccountId()).signum()).isGreaterThanOrEqualTo(0);
+        assertThat(clearingAccountIds())
+                .allSatisfy(id -> assertThat(ledgerSum(id).signum()).isGreaterThanOrEqualTo(0));
         long openingForAlice = jdbc.sql(
                         "SELECT COUNT(*) FROM ledger_entries WHERE account_id = :id AND payment_id IS NULL")
                 .param("id", ALICE)

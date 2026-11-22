@@ -52,15 +52,15 @@ class JdbcAccountRepository implements AccountRepository {
     }
 
     @Override
-    public Optional<UUID> findClearingAccountId(String currency) {
+    public List<UUID> findClearingAccountIds(String currency) {
         return jdbc.sql("""
                         SELECT id FROM accounts
                         WHERE account_type = 'CLEARING' AND currency = :currency
-                        ORDER BY id LIMIT 1
+                        ORDER BY id
                         """)
                 .param("currency", currency)
                 .query((rs, n) -> uuid(rs, "id"))
-                .optional();
+                .list();
     }
 
     @Override

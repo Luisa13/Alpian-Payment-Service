@@ -1,6 +1,7 @@
 package ch.alpian.payment.integration;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -54,9 +55,16 @@ public abstract class PaymentIntegrationTest extends IntegrationTestBase {
                 .single();
     }
 
-    protected UUID clearingAccountId() {
-        return jdbc.sql("SELECT id FROM accounts WHERE account_type = 'CLEARING' AND currency = 'CHF'")
+    protected List<UUID> clearingAccountIds() {
+        return jdbc.sql("SELECT id FROM accounts WHERE account_type = 'CLEARING' AND currency = 'CHF' ORDER BY id")
                 .query(UUID.class)
+                .list();
+    }
+
+    protected BigDecimal totalClearingBalance() {
+        return jdbc.sql(
+                        "SELECT COALESCE(SUM(balance), 0) FROM accounts WHERE account_type = 'CLEARING' AND currency = 'CHF'")
+                .query(BigDecimal.class)
                 .single();
     }
 

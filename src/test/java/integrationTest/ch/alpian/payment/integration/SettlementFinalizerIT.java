@@ -107,15 +107,14 @@ class SettlementFinalizerIT extends PaymentIntegrationTest {
     @Test
     void external_settlement_credits_chf_clearing_account() {
         UUID sender = newAccount("100.00");
-        UUID clearing = clearingAccountId();
-        BigDecimal clearingBefore = balance(clearing);
+        BigDecimal clearingBefore = totalClearingBalance();
         Payment reserved = reserve(sender, Receiver.external("CH9300762011623852957"), "30.00");
 
         Payment finalized = finalizeSettlement.finalizeSettlement(reserved.getId(), SettlementOutcome.settled("EXT-1"));
 
         assertThat(finalized.getStatus()).isEqualTo(PaymentStatus.COMPLETED);
         assertThat(balance(sender)).isEqualByComparingTo("70.00");
-        assertThat(balance(clearing)).isEqualByComparingTo(clearingBefore.add(new BigDecimal("30.00")));
+        assertThat(totalClearingBalance()).isEqualByComparingTo(clearingBefore.add(new BigDecimal("30.00")));
         assertThat(ledgerRows(reserved.getId())).isEqualTo(2);
     }
 
