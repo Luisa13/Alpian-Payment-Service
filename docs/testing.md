@@ -20,6 +20,33 @@ In addition to running all three suites, `./gradlew build` enforces:
 
 ## Smoke Tests
 
+Shell-based smoke tests run against a locally running stack (`make run`) via `Makefile` targets:
+
+| Target | Script | Description | Customizable Parameters |
+| :--- | :--- | :--- | :--- |
+| `make smoke` | [`scripts/smoke.sh`](../scripts/smoke.sh) | Verifies `POST /api/v1/payments` (`201 Created`), idempotent replay (`200 OK`), key reuse with mismatched body (`422`), and Prometheus metrics (`payments_notifications_sent_total`, `outbox_backlog_events`). | `BASE_URL` (default `http://localhost:8080`) |
+| `make smoke-outbox` | [`scripts/smoke-outbox.sh`](../scripts/smoke-outbox.sh) | Verifies the outbox relay happy path: creates a payment, waits for `PAYMENT_RESERVED` and `PAYMENT_COMPLETED` rows in `outbox_events` to be published, and checks that they land in Kafka `payment-notifications`. | `BASE_URL` (default `http://localhost:8080`), `COMPOSE` (default `docker compose`) |
+| `make smoke-outbox-dlq` | [`scripts/smoke-outbox-dlq.sh`](../scripts/smoke-outbox-dlq.sh) | Temporarily stops Kafka, injects a poison `outbox_events` row, verifies it is dead-lettered after 5 attempts (`dead_lettered_at` set, `outbox.backlog.events > 0`), restarts Kafka, and confirms new payments are unblocked. | `BASE_URL` (default `http://localhost:8080`), `COMPOSE` (default `docker compose`) |
+| `make smoke-burst` | [`scripts/smoke-burst.sh`](../scripts/smoke-burst.sh) | Fires concurrent `POST /api/v1/payments` requests, waits for all outbox events to be published, and verifies all payment IDs arrive in Kafka `payment-notifications`. | `BASE_URL` (default `http://localhost:8080`), `COMPOSE` (default `docker compose`), `BURST_SIZE` (default `10`) |
+| `make smoke-resilience` | [`scripts/smoke-resilience.sh`](../scripts/smoke-resilience.sh) | Exercises liveness/readiness probes, error handling (`400`, `404`, `422`), external IBAN rail & `GET /api/v1/payments/{id}`, concurrent overdraft race & ledger invariants, simultaneous duplicate `Idempotency-Key` requests, and payment intake while Kafka is down. | `BASE_URL` (default `http://localhost:8080`), `COMPOSE` (default `docker compose`) |
+
+### Examples
+
+```bash
+# Basic API & metrics smoke test against a custom port
+BASE_URL=http://localhost:8081 make smoke
+
+# Outbox happy-path and dead-letter tests
+make smoke-outbox
+make smoke-outbox-dlq
+
+# Concurrent burst with 25 parallel payments
+BURST_SIZE=25 make smoke-burst
+
+# Resilience & concurrency suite
+make smoke-resilience
+```
+
 ---
 
 ## Gradle Commands

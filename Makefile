@@ -15,6 +15,7 @@ up: ## Start all infrastructure containers (PostgreSQL, Kafka, Grafana, Promethe
 	@echo "  Kafka UI    → http://localhost:8090"
 	@echo "  Prometheus  → http://localhost:9090"
 	@echo "  Grafana     → http://localhost:3000  (admin/admin)"
+	@echo "  Docs		 → http://localhost:8000/"
 
 down: ## Stop and remove all containers and networks (data volumes are preserved)
 	$(COMPOSE) down
