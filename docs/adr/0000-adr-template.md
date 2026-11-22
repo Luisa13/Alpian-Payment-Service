@@ -20,8 +20,8 @@ What are the resulting context and trade-offs after applying the decision?
 -
 
 ### Negative
-
 -
+
 
 ### Neutral
 
