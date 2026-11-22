@@ -67,6 +67,7 @@ app:
     timeout: 2s                  # hard limit for a settlement rail call
     simulated:                   # the simulated external rail (receiver is an IBAN)
       delay: 100ms
+      delivery-delay: 1s
       rejection-rate: 0.05
       timeout-rate: 0.05
   recovery:                      # stale-payment recovery job

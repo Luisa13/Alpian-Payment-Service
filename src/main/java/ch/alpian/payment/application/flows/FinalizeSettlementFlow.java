@@ -83,7 +83,8 @@ public class FinalizeSettlementFlow {
         return switch (outcome.status()) {
             case SETTLED -> complete(payment, outcome.reference());
             case REJECTED -> fail(payment);
-            case UNKNOWN -> {
+            case ACCEPTED -> payment;
+            case UNKNOWN, PENDING -> {
                 recordAttempt.execute(payment);
                 yield payment;
             }

@@ -27,5 +27,6 @@ app:
   rail:
     simulated:
       delay: 0ms
+      delivery-delay: 50ms
       rejection-rate: 0
       timeout-rate: 0

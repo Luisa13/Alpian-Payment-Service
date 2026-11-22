@@ -3,6 +3,8 @@ package ch.alpian.payment.infrastructure.rail;
 import ch.alpian.payment.domain.SettlementOutcome;
 import ch.alpian.payment.domain.SettlementRail;
 import ch.alpian.payment.domain.SettlementRequest;
+import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.random.RandomGenerator;
@@ -11,9 +13,10 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 /**
  * Simulated external rail (receiver is an IBAN).
  *
- * <p>Idempotent per payment id: the first definite answer (SETTLED or REJECTED) is stored in
- * {@code rail_sim_transfers} and returned for every later call, also after a restart. A simulated
- * timeout answers UNKNOWN and stores nothing, so a retry gets a fresh roll.
+ * <p>Idempotent per payment id: accepting a submission inserts a pending row into
+ * {@code rail_sim_transfers} with {@code deliver_at} and returns {@code ACCEPTED}. The outcome
+ * decision and delivery happen asynchronously in the dispatcher. A simulated timeout answers
+ * {@code UNKNOWN} and stores nothing, so a retry gets a fresh roll.
  */
 class SimulatedExternalRail implements SettlementRail {
 
@@ -29,7 +32,7 @@ class SimulatedExternalRail implements SettlementRail {
 
     @Override
     public SettlementOutcome settle(SettlementRequest request) {
-        Optional<SettlementOutcome> known = findStored(request.paymentId());
+        Optional<SettlementOutcome> known = findStored(request.paymentId(), true);
         if (known.isPresent()) {
             return known.get();
         }
@@ -39,35 +42,36 @@ class SimulatedExternalRail implements SettlementRail {
             return SettlementOutcome.unknown();
         }
 
-        String outcome = random.nextDouble() < properties.rejectionRate() ? "REJECTED" : "SETTLED";
+        Instant deliverAt = Instant.now().plus(properties.deliveryDelay());
         jdbc.sql("""
-                        INSERT INTO rail_sim_transfers (payment_id, outcome, reference)
-                        VALUES (:paymentId, :outcome, :reference)
+                        INSERT INTO rail_sim_transfers (payment_id, deliver_at)
+                        VALUES (:paymentId, :deliverAt)
                         ON CONFLICT (payment_id) DO NOTHING
                         """)
                 .param("paymentId", request.paymentId())
-                .param("outcome", outcome)
-                .param("reference", "SIM-" + UUID.randomUUID().toString().substring(0, 8))
+                .param("deliverAt", Timestamp.from(deliverAt))
                 .update();
 
-        // Re-read: if a concurrent call stored an answer first, that answer wins for everyone.
-        return findStored(request.paymentId())
-                .orElseThrow(() -> new IllegalStateException("Rail outcome vanished for " + request.paymentId()));
+        return findStored(request.paymentId(), true)
+                .orElseThrow(() -> new IllegalStateException("Rail submission vanished for " + request.paymentId()));
     }
 
     @Override
     public SettlementOutcome getStatus(SettlementRequest request) {
-        // Return the stored outcome if the rail reached a decision; UNKNOWN otherwise.
-        // No network call, no side effects.
-        return findStored(request.paymentId()).orElse(SettlementOutcome.unknown());
+        return findStored(request.paymentId(), false).orElse(SettlementOutcome.unknown());
     }
 
-    private Optional<SettlementOutcome> findStored(UUID paymentId) {
-        return jdbc.sql("SELECT outcome, reference FROM rail_sim_transfers WHERE payment_id = :id")
+    private Optional<SettlementOutcome> findStored(UUID paymentId, boolean forSettle) {
+        return jdbc.sql("SELECT outcome, reference, delivered_at FROM rail_sim_transfers WHERE payment_id = :id")
                 .param("id", paymentId)
-                .query((rs, n) -> "SETTLED".equals(rs.getString("outcome"))
-                        ? SettlementOutcome.settled(rs.getString("reference"))
-                        : SettlementOutcome.rejected())
+                .query((rs, n) -> {
+                    if (rs.getTimestamp("delivered_at") == null) {
+                        return forSettle ? SettlementOutcome.accepted() : SettlementOutcome.pending();
+                    }
+                    return "SETTLED".equals(rs.getString("outcome"))
+                            ? SettlementOutcome.settled(rs.getString("reference"))
+                            : SettlementOutcome.rejected();
+                })
                 .optional();
     }
 
