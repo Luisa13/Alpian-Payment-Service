@@ -81,6 +81,10 @@ dependencies {
     // Structured logging
     implementation(libs.logstash.logback.encoder)
 
+    // Distributed scheduler lock
+    implementation(libs.shedlock.spring)
+    implementation(libs.shedlock.jdbc)
+
     // ─── Test fixtures (shared between integrationTest and e2eTest) ───────────
     testFixturesImplementation(platform(libs.spring.boot.bom))
     testFixturesImplementation("org.springframework.boot:spring-boot-starter-test")

@@ -9,8 +9,10 @@ import ch.alpian.payment.domain.SettlementOutcome;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.sql.Timestamp;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -32,15 +34,19 @@ import org.springframework.transaction.support.TransactionTemplate;
  * the attempt cap are left untouched and surfaced via the {@code payments.recovery.stuck} gauge for
  * manual review — they are never auto-failed without the rail confirming the money did not move.
  *
- * <p>Multiple instances running this job concurrently are safe: {@link FinalizeSettlementFlow} uses
- * a guarded {@code UPDATE … WHERE status = 'RESERVED'}, so at most one instance finalizes any
- * given payment.
+ * <p>A ShedLock distributed lock ({@code recoveryJob}) ensures at most one replica runs recovery
+ * at a time, preventing duplicate external rail calls across replicas. Each batch enforces a 90s
+ * time budget so processing finishes well within the 2-minute {@code lockAtMostFor} window; any
+ * remaining payments are deferred to the next cycle. {@link FinalizeSettlementFlow} also uses a
+ * guarded {@code UPDATE … WHERE status = 'RESERVED'} as a safety net so at most one finalization
+ * can ever commit for a given payment.
  */
 @Component
 class RecoveryJob {
 
     private static final Logger log = LoggerFactory.getLogger(RecoveryJob.class);
     private static final int BATCH_SIZE = 50;
+    private static final Duration MAX_BATCH_DURATION = Duration.ofSeconds(90);
 
     private final PaymentRepository payments;
     private final CallSettlementRailTask callRail;
@@ -73,7 +79,13 @@ class RecoveryJob {
                 .register(meters);
     }
 
-    @Scheduled(fixedDelayString = "${app.recovery.interval-ms}")
+    @Scheduled(
+            fixedDelayString = "${app.recovery.interval-ms}",
+            initialDelayString = "${app.recovery.initial-delay-ms:${app.recovery.interval-ms}}")
+    @SchedulerLock(
+            name = "recoveryJob",
+            lockAtMostFor = "${app.recovery.lock-at-most:PT2M}",
+            lockAtLeastFor = "${app.recovery.lock-at-least:PT5S}")
     public void recover() {
         Instant threshold = Instant.now().minus(properties.staleAfter());
         List<Payment> stale = readOnlyTx.execute(
@@ -81,20 +93,27 @@ class RecoveryJob {
         if (stale == null || stale.isEmpty()) return;
 
         log.info("Recovery: found {} stale RESERVED payment(s) to retry", stale.size());
+        Instant deadline = Instant.now().plus(MAX_BATCH_DURATION);
         for (Payment payment : stale) {
+            if (Instant.now().isAfter(deadline)) {
+                log.warn(
+                        "Recovery batch hit {} time budget; remaining payments deferred to next cycle",
+                        MAX_BATCH_DURATION);
+                break;
+            }
             retryOne(payment);
         }
     }
 
     private void retryOne(Payment payment) {
-        // Check whether the rail already processed the payment before re-submitting.
-        // If the initial settle() timed out the rail may have recorded a SETTLED/REJECTED outcome
-        // that we never saw. Re-submitting in that case would be a semantic duplicate.
-        SettlementOutcome status = callRail.getStatus(payment);
-        SettlementOutcome outcome = status.status() == SettlementOutcome.Status.UNKNOWN
-                ? callRail.execute(payment) // rail has no record; re-submit
-                : status; // rail has a definitive answer; use it directly
         try {
+            // Check whether the rail already processed the payment before re-submitting.
+            // If the initial settle() timed out the rail may have recorded a SETTLED/REJECTED outcome
+            // that we never saw. Re-submitting in that case would be a semantic duplicate.
+            SettlementOutcome status = callRail.getStatus(payment);
+            SettlementOutcome outcome = status.status() == SettlementOutcome.Status.UNKNOWN
+                    ? callRail.execute(payment) // rail has no record; re-submit
+                    : status; // rail has a definitive answer; use it directly
             retry.execute(() -> finalizeSettlement.finalizeSettlement(payment.getId(), outcome));
         } catch (RuntimeException e) {
             log.warn("Recovery attempt failed for payment {} (will retry next cycle)", payment.getId(), e);
