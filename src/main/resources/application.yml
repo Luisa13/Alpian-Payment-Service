@@ -1,6 +1,6 @@
 spring:
   application:
-    name: payment-service-template
+    name: payment-service
 
   # Virtual threads — turns every blocking thread into a virtual thread.
   # Combined with spring-kafka and spring-data-jdbc this gives high concurrency at low cost.

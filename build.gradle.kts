@@ -254,7 +254,7 @@ jib {
         image = "gcr.io/distroless/java21-debian12"
     }
     to {
-        image = System.getenv("IMAGE_NAME") ?: "payment-service-template:latest"
+        image = System.getenv("IMAGE_NAME") ?: "payment-service:latest"
     }
     container {
         jvmFlags = listOf(
