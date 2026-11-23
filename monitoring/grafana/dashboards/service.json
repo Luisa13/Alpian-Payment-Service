@@ -1,6 +1,6 @@
 {
   "title": "Payment Service — Template Dashboard",
-  "uid": "payment-service-template",
+  "uid": "payment-service",
   "schemaVersion": 38,
   "version": 1,
   "refresh": "10s",

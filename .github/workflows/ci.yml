@@ -48,4 +48,4 @@ jobs:
       - name: Build Docker image (local daemon)
         run: ./gradlew jibDockerBuild
         env:
-          IMAGE_NAME: payment-service-template:${{ github.sha }}
+          IMAGE_NAME: payment-service:${{ github.sha }}

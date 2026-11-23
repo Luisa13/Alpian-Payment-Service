@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
 
-  <springProperty scope="context" name="appName" source="spring.application.name" defaultValue="payment-service-template"/>
+  <springProperty scope="context" name="appName" source="spring.application.name" defaultValue="payment-service"/>
 
   <!-- ── Local profile: human-readable console output ──────────────────── -->
   <springProfile name="local">
