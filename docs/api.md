@@ -14,7 +14,7 @@ All errors follow RFC 9457 `ProblemDetail` (`application/problem+json`) with a s
 
 ## Payments
 
-<details>
+<details markdown="1">
 <summary><code>POST /api/v1/payments</code> — Create and settle a payment for a sender account.</summary>
 
 ### Parameters
@@ -95,7 +95,7 @@ curl -i -X POST http://localhost:8080/api/v1/payments \
 
 </details>
 
-<details>
+<details markdown="1">
 <summary><code>GET /api/v1/payments/{id}</code> — Retrieve a payment by its ID.</summary>
 
 ### Parameters
@@ -145,7 +145,7 @@ curl -s http://localhost:8080/api/v1/payments/b1f5b8e0-7c3d-4a1e-9f2a-1234567890
 
 ## Accounts
 
-<details>
+<details markdown="1">
 <summary><code>GET /api/v1/accounts/{id}</code> — Retrieve an account and its current and available balances.</summary>
 
 ### Parameters

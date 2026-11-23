@@ -3,7 +3,6 @@ theme:
   name: material
   features:
     - navigation.sections
-    - navigation.expand
     - navigation.indexes
     - search.suggest
     - search.highlight
@@ -24,6 +23,7 @@ theme:
 
 markdown_extensions:
   - admonition
+  - md_in_html
   - pymdownx.details
   - pymdownx.superfences:
       custom_fences:
@@ -34,6 +34,7 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Architecture: architecture.md
+  - Design, Assumptions & Philosophy: design-assumptions-philosophy.md
   - API: api.md
   - Database: database.md
   - Messaging: messaging.md
