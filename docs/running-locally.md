@@ -13,8 +13,9 @@
 Start PostgreSQL, Kafka (KRaft), Kafka UI, Prometheus, and Grafana using `make`:
 
 ```bash
-make up
+./gradlew bootRun
 ```
+⚠️ `make run` command exists to build the app image and start it alongside the infra stack, however it's unsupported at the moment. Use the example command above these lines.
 
 This runs `docker compose up -d --wait` and initializes the `payment-notifications` and `payment-notifications.DLT` Kafka topics. Once ready, the following endpoints are available:
 
