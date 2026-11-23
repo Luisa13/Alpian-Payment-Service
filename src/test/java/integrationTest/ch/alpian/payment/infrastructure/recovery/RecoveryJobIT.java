@@ -13,6 +13,7 @@ import ch.alpian.payment.domain.SettlementOutcome;
 import ch.alpian.payment.domain.SettlementRail;
 import ch.alpian.payment.integration.PaymentIntegrationTest;
 import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.web.client.TestRestTemplate;
@@ -42,6 +43,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
             "app.recovery.interval-ms=600000",
             "app.recovery.stale-after=30s",
             "app.recovery.max-attempts=3",
+            "app.recovery.lock-at-least=PT0S",
             "app.rail.timeout=150ms"
         })
 class RecoveryJobIT extends PaymentIntegrationTest {
@@ -54,6 +56,12 @@ class RecoveryJobIT extends PaymentIntegrationTest {
 
     @MockitoBean
     SettlementRail rail;
+
+    @BeforeEach
+    void resetShedLock() {
+        jdbc.sql("UPDATE shedlock SET lock_until = locked_at - INTERVAL '1 second' WHERE name = 'recoveryJob'")
+                .update();
+    }
 
     @Test
     void stale_reserved_payment_is_completed_by_recovery_via_resubmit() {

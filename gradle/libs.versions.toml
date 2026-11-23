@@ -2,6 +2,7 @@
 springBoot = "3.5.16"
 archunit = "1.5.1"
 logstashLogbackEncoder = "9.0"
+shedlock = "6.10.0"
 palantirJavaFormat = "2.103.0"
 spotless = "8.11.0"
 jib = "3.5.4"
@@ -12,6 +13,8 @@ jacoco = "0.8.12"
 spring-boot-bom = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "springBoot" }
 archunit-junit5 = { module = "com.tngtech.archunit:archunit-junit5", version.ref = "archunit" }
 logstash-logback-encoder = { module = "net.logstash.logback:logstash-logback-encoder", version.ref = "logstashLogbackEncoder" }
+shedlock-spring = { module = "net.javacrumbs.shedlock:shedlock-spring", version.ref = "shedlock" }
+shedlock-jdbc = { module = "net.javacrumbs.shedlock:shedlock-provider-jdbc-template", version.ref = "shedlock" }
 
 [plugins]
 spring-boot = { id = "org.springframework.boot", version.ref = "springBoot" }
