@@ -18,6 +18,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.config.KafkaListenerEndpointRegistry;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.listener.ContainerProperties;
 import org.springframework.kafka.test.utils.ContainerTestUtils;
 import org.springframework.test.context.TestPropertySource;
 
@@ -51,6 +52,16 @@ class NotificationConsumerIT extends PaymentIntegrationTest {
                 .findFirst()
                 .orElseThrow();
         ContainerTestUtils.waitForAssignment(container, partitions);
+    }
+
+    @Test
+    void listener_container_uses_record_ack_mode() {
+        var container = registry.getAllListenerContainers().stream()
+                .filter(c -> "notification-consumer-it".equals(c.getGroupId()))
+                .findFirst()
+                .orElseThrow();
+
+        assertThat(container.getContainerProperties().getAckMode()).isEqualTo(ContainerProperties.AckMode.RECORD);
     }
 
     @Test
