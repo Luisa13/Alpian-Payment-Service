@@ -67,15 +67,15 @@ fi
 echo "OK: poison row dead-lettered after 5 attempts"
 
 echo ""
-echo "==> Checking outbox.backlog.events gauge (> 0 expected)"
-BACKLOG=$(curl -s "$BASE_URL/actuator/metrics/outbox.backlog.events" | \
+echo "==> Checking outbox.dead_lettered.events gauge (> 0 expected)"
+DEAD_LETTERED=$(curl -s "$BASE_URL/actuator/metrics/outbox.dead_lettered.events" | \
   python3 -c "import sys, json; m = json.load(sys.stdin)['measurements']; print(m[0]['value'])")
-IS_POSITIVE=$(python3 -c "print('yes' if float('$BACKLOG') > 0 else 'no')")
+IS_POSITIVE=$(python3 -c "print('yes' if float('$DEAD_LETTERED') > 0 else 'no')")
 if [ "$IS_POSITIVE" != "yes" ]; then
-  echo "FAIL: expected outbox.backlog.events > 0, got $BACKLOG"
+  echo "FAIL: expected outbox.dead_lettered.events > 0, got $DEAD_LETTERED"
   exit 1
 fi
-echo "OK: outbox.backlog.events = $BACKLOG"
+echo "OK: outbox.dead_lettered.events = $DEAD_LETTERED"
 
 echo ""
 echo "==> Step 4: Restoring Kafka and waiting for broker readiness"

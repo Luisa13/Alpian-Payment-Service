@@ -28,13 +28,14 @@ import org.springframework.transaction.support.TransactionTemplate;
  * <p>Every {@code app.outbox.relay-interval-ms} it claims a batch of up to 100 unpublished rows
  * with {@code FOR UPDATE SKIP LOCKED} in a short TX1, releases the row lock, then sends each
  * record to Kafka outside any transaction. After a successful ack, TX2 marks the row published. On
- * failure the row's attempt counter and error are recorded and {@code claimed_at} is cleared so the
- * next relay cycle can retry immediately. After {@code MAX_PUBLISH_ATTEMPTS} failures the row is
- * dead-lettered ({@code dead_lettered_at} is set) and skipped by all future relay cycles. A row
- * that is claimed but never published (crash between TX1 and TX2) is reclaimed after {@code
- * app.outbox.claim-ttl-ms}. The Kafka key is {@code
- * payment_id}, guaranteeing partition affinity. A crash after ack but before TX2 can send a record
- * twice; the consumer dedupes on event id.
+ * failure the row's attempt counter and error are recorded and {@code claimed_at} is cleared on
+ * both the failed row and any remaining unprocessed rows in the batch so the next relay cycle can
+ * retry immediately without stranding them for {@code claim-ttl-ms}. After {@code
+ * MAX_PUBLISH_ATTEMPTS} failures the row is dead-lettered ({@code dead_lettered_at} is set) and
+ * skipped by all future relay cycles. A row that is claimed but never published (crash between TX1
+ * and TX2) is reclaimed after {@code app.outbox.claim-ttl-ms}. The Kafka key is {@code payment_id},
+ * guaranteeing partition affinity. A crash after ack but before TX2 can send a record twice; the
+ * consumer dedupes on event id.
  */
 @Component
 class OutboxRelay {
@@ -66,6 +67,9 @@ class OutboxRelay {
         Gauge.builder("outbox.backlog.events", this, OutboxRelay::backlog)
                 .description("Number of unpublished outbox events waiting for Kafka")
                 .register(meters);
+        Gauge.builder("outbox.dead_lettered.events", this, OutboxRelay::deadLettered)
+                .description("Number of outbox events dead-lettered after exhausting publish attempts")
+                .register(meters);
     }
 
     @Scheduled(fixedDelayString = "${app.outbox.relay-interval-ms}")
@@ -73,7 +77,8 @@ class OutboxRelay {
         List<OutboxRow> batch = txTemplate.execute(status -> fetchAndClaim());
         if (batch == null || batch.isEmpty()) return;
 
-        for (OutboxRow row : batch) {
+        for (int i = 0; i < batch.size(); i++) {
+            OutboxRow row = batch.get(i);
             try {
                 send(row);
                 txTemplate.executeWithoutResult(status -> markPublished(row));
@@ -81,7 +86,13 @@ class OutboxRelay {
                 if (e instanceof InterruptedException) {
                     Thread.currentThread().interrupt();
                 }
-                txTemplate.executeWithoutResult(status -> markFailed(row, e));
+                List<UUID> remainingIds = batch.subList(i + 1, batch.size()).stream()
+                        .map(OutboxRow::id)
+                        .toList();
+                txTemplate.executeWithoutResult(status -> {
+                    markFailed(row, e);
+                    releaseClaims(remainingIds);
+                });
                 log.warn(
                         "Outbox event {} not published (attempt recorded, dead-lettered after {}): {}",
                         row.id(),
@@ -156,8 +167,24 @@ class OutboxRelay {
                 .update();
     }
 
+    private void releaseClaims(List<UUID> ids) {
+        if (ids.isEmpty()) return;
+        jdbc.sql("UPDATE outbox_events SET claimed_at = NULL WHERE id IN (:ids)")
+                .param("ids", ids)
+                .update();
+    }
+
     private double backlog() {
-        Long count = jdbc.sql("SELECT COUNT(*) FROM outbox_events WHERE published_at IS NULL")
+        Long count = jdbc.sql(
+                        "SELECT COUNT(*) FROM outbox_events WHERE published_at IS NULL AND dead_lettered_at IS NULL")
+                .query(Long.class)
+                .single();
+        return count == null ? 0 : count;
+    }
+
+    private double deadLettered() {
+        Long count = jdbc.sql(
+                        "SELECT COUNT(*) FROM outbox_events WHERE published_at IS NULL AND dead_lettered_at IS NOT NULL")
                 .query(Long.class)
                 .single();
         return count == null ? 0 : count;

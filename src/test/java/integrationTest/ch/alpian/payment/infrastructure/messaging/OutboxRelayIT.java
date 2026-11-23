@@ -181,6 +181,98 @@ class OutboxRelayIT extends PaymentIntegrationTest {
         }
     }
 
+    @Test
+    void when_publish_fails_remaining_claimed_rows_in_batch_are_released_immediately() {
+        UUID payment1 = UUID.randomUUID();
+        UUID payment2 = UUID.randomUUID();
+        UUID event1 = UUID.randomUUID();
+        UUID event2 = UUID.randomUUID();
+        String payload = "{\"paymentId\":\"%s\"}";
+
+        KafkaTemplate<String, String> failingTemplate = spy(kafkaTemplate);
+        doReturn(CompletableFuture.failedFuture(new RuntimeException("Simulated Kafka outage")))
+                .when(failingTemplate)
+                .send(any(ProducerRecord.class));
+        var failingRelay =
+                new OutboxRelay(jdbc, failingTemplate, new SimpleMeterRegistry(), txManager, ackTimeoutMs, claimTtlMs);
+
+        jdbc.sql("""
+                        INSERT INTO outbox_events (id, aggregate_id, event_type, payload, created_at)
+                        VALUES (:id, :agg, 'PAYMENT_COMPLETED', CAST(:payload AS jsonb), now() - interval '2 seconds')
+                        """)
+                .param("id", event1)
+                .param("agg", payment1)
+                .param("payload", payload.formatted(payment1))
+                .update();
+        jdbc.sql("""
+                        INSERT INTO outbox_events (id, aggregate_id, event_type, payload, created_at)
+                        VALUES (:id, :agg, 'PAYMENT_COMPLETED', CAST(:payload AS jsonb), now() - interval '1 second')
+                        """)
+                .param("id", event2)
+                .param("agg", payment2)
+                .param("payload", payload.formatted(payment2))
+                .update();
+
+        try {
+            failingRelay.relay();
+
+            Long stranded = jdbc.sql(
+                            "SELECT COUNT(*) FROM outbox_events WHERE id IN (:id1, :id2) AND claimed_at IS NOT NULL")
+                    .param("id1", event1)
+                    .param("id2", event2)
+                    .query(Long.class)
+                    .single();
+            assertThat(stranded).isZero();
+
+            outboxRelay.relay();
+
+            Long remainingUnpublished = jdbc.sql(
+                            "SELECT COUNT(*) FROM outbox_events WHERE id IN (:id1, :id2) AND published_at IS NULL")
+                    .param("id1", event1)
+                    .param("id2", event2)
+                    .query(Long.class)
+                    .single();
+            assertThat(remainingUnpublished).isZero();
+        } finally {
+            jdbc.sql("DELETE FROM outbox_events WHERE id IN (:id1, :id2)")
+                    .param("id1", event1)
+                    .param("id2", event2)
+                    .update();
+        }
+    }
+
+    @Test
+    void backlog_gauge_excludes_dead_lettered_rows_and_dead_lettered_gauge_counts_them() {
+        var registry = new SimpleMeterRegistry();
+        new OutboxRelay(jdbc, kafkaTemplate, registry, txManager, ackTimeoutMs, claimTtlMs);
+
+        double backlogBefore = registry.get("outbox.backlog.events").gauge().value();
+        double deadLetteredBefore =
+                registry.get("outbox.dead_lettered.events").gauge().value();
+
+        UUID activeEvent = UUID.randomUUID();
+        UUID deadEvent = UUID.randomUUID();
+        jdbc.sql("""
+                        INSERT INTO outbox_events (id, aggregate_id, event_type, payload)
+                        VALUES (:id, :agg, 'PAYMENT_COMPLETED', CAST('{}' AS jsonb))
+                        """).param("id", activeEvent).param("agg", UUID.randomUUID()).update();
+        jdbc.sql("""
+                        INSERT INTO outbox_events (id, aggregate_id, event_type, payload, publish_attempts, dead_lettered_at)
+                        VALUES (:id, :agg, 'PAYMENT_COMPLETED', CAST('{}' AS jsonb), 5, now())
+                        """).param("id", deadEvent).param("agg", UUID.randomUUID()).update();
+
+        try {
+            assertThat(registry.get("outbox.backlog.events").gauge().value()).isEqualTo(backlogBefore + 1.0);
+            assertThat(registry.get("outbox.dead_lettered.events").gauge().value())
+                    .isEqualTo(deadLetteredBefore + 1.0);
+        } finally {
+            jdbc.sql("DELETE FROM outbox_events WHERE id IN (:id1, :id2)")
+                    .param("id1", activeEvent)
+                    .param("id2", deadEvent)
+                    .update();
+        }
+    }
+
     private ResponseEntity<PaymentResponse> postPayment(UUID sender, UUID receiver, String amount) {
         var req = new CreatePaymentRequest()
                 .amount(amount)
