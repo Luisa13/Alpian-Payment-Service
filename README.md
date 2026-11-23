@@ -16,10 +16,9 @@ Payment Service (Spring Boot, Java 21, Gradle, PostgreSQL, Kafka) where users cr
 How to run this project in a nutshell. For more information look at [running locally in the docs](docs/running-locally.md)
 
 ```bash
-git clone <repo-url> payment-service
-cd payment-service
-make up        # starts Postgres, Kafka, Prometheus, Grafana and Docs
-make smoke     # exercises the HTTP API and prints metrics
+make up            # starts Postgres, Kafka, Prometheus, Grafana and Docs
+./gradlew bootRun  # starts the app
+make smoke         # exercises the HTTP API and prints metrics
 ```
 
 Service | Address
@@ -49,8 +48,3 @@ You can find a more exhaustive analysis in the Assumptions & Scope section withi
 - **Advanced outbox delivery guarantees**: Cross-replica event ordering and CDC-based outbox delivery are outside the scope of this implementation.
 - **Additional platform and payment capabilities**: Asynchronous external rail callbacks and webhooks (ADR-0020), multi-currency settlement and FX, API authentication and rate limiting, and archival of historical payments and outbox_events data are not covered.
 - Secret rotation is out of scope
-
-## Trade-offs
-
-- **Polling outbox vs CDC**: polling at 1 s adds ~1 s end-to-end latency but requires no additional infrastructure. Debezium CDC eliminates this at the cost of a connector cluster (see ADR-0003).
-- **Spring Data JDBC vs JPA**: JDBC enforces explicit aggregate boundaries and prevents lazy-loading surprises; the trade-off is more verbose mapping for complex object graphs.
